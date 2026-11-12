@@ -1,6 +1,6 @@
 # VidVault
 
-Save videos from **YouTube, Instagram, Facebook, X (Twitter), TikTok and Threads** in any resolution the site offers, from 144p up to 4K/8K or audio only (M4A/MP3). Saved videos stay on your device, so you can watch them without Wi-Fi. The interface is in English and Arabic.
+Save videos from **YouTube, Instagram, Facebook, X (Twitter), TikTok, Threads and Snapchat** in any resolution the site offers, from 144p up to 4K/8K or audio only (M4A/MP3). Saved videos stay on your device, so you can watch them without Wi-Fi. The interface is in English and Arabic.
 
 | | Link |
 |---|---|
@@ -8,7 +8,7 @@ Save videos from **YouTube, Instagram, Facebook, X (Twitter), TikTok and Threads
 | 🌐 **Web app** (iPhone, iPad, computer) | **https://barzandh.github.io/Youdownload-/** |
 
 ## Features
-- **Browser tab**: in-app browser (Android) with shortcuts to all six sites, search engine choice, user-agent switch, ad blocking, bookmarks and history. Tap **⬇ Download** on any video page.
+- **Browser tab**: in-app browser (Android) with shortcuts to all seven sites, search engine choice, user-agent switch, ad blocking, bookmarks and history. Tap **⬇ Download** on any video page.
 - **Paste link** or **Share → VidVault** from the YouTube, Instagram or TikTok apps (Android).
 - **Every resolution** the site provides (2160p, 1440p, 1080p60, 720p, 480p, 360p, 240p, 144p…), with codec and estimated size. Audio-only M4A/MP3 too. Instagram/X carousels: pick one video or download all.
 - **Downloads tab**: live progress, speed, time left, cancel/retry. On Android, downloads keep going in the background.
@@ -44,12 +44,12 @@ server/    download server for the web app (Python + yt-dlp + ffmpeg, Docker)
 ```
 
 ## Responsible use
-Only download videos you own or have permission to save, and follow each site's terms. VidVault is not affiliated with YouTube, Instagram, Facebook, X, TikTok or Threads.
+Only download videos you own or have permission to save, and follow each site's terms. VidVault is not affiliated with YouTube, Instagram, Facebook, X, TikTok, Threads or Snapchat.
 
 ---
 
 ## بالعربية
-**VidVault** يحفظ الفيديوهات من يوتيوب وإنستغرام وفيسبوك وX وتيك توك وثريدز بكل الدقّات المتاحة (من 144p حتى 4K) أو كصوت فقط، لتشاهدها دون إنترنت.
+**VidVault** يحفظ الفيديوهات من يوتيوب وإنستغرام وفيسبوك وX وتيك توك وثريدز وسناب شات بكل الدقّات المتاحة (من 144p حتى 4K) أو كصوت فقط، لتشاهدها دون إنترنت.
 
 - **أندرويد (هواتف وأجهزة لوحية):** نزّل [VidVault.apk](https://github.com/Barzandh/Youdownload-/releases/latest/download/VidVault.apk)، ثم افتحه واضغط «تثبيت».
 - **آيفون وآيباد:** افتح https://barzandh.github.io/Youdownload-/ في Safari ← مشاركة ← «إضافة إلى الشاشة الرئيسية». الصق الرابط واختر الجودة، فيُنزَّل الفيديو مباشرة دون أي إعداد.

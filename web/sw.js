@@ -1,6 +1,6 @@
 /* VidVault service worker: keeps the app itself available offline.
  * Downloaded videos live in IndexedDB, not in this cache. */
-const BUILD = '1.0.0-2';
+const BUILD = '1.0.0-3';
 const CACHE = 'vidvault-' + BUILD;
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'i18n.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/maskable-512.png', 'instances.json'];

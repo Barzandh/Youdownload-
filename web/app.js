@@ -135,6 +135,7 @@ const PLATFORMS = [
   { id: 'youtube', name: 'YouTube', abbr: 'YT', re: /(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/i, home: 'https://m.youtube.com/', bg: 'linear-gradient(135deg,#ff2d2d,#d40000)' },
   { id: 'tiktok', name: 'TikTok', abbr: 'TT', re: /(^|\.)(tiktok\.com)$/i, home: 'https://www.tiktok.com/', bg: 'linear-gradient(135deg,#25f4ee,#111 40%,#111 60%,#fe2c55)' },
   { id: 'threads', name: 'Threads', abbr: 'TH', re: /(^|\.)(threads\.net|threads\.com)$/i, home: 'https://www.threads.com/', bg: 'linear-gradient(135deg,#444,#000)' },
+  { id: 'snapchat', name: 'Snapchat', abbr: 'SC', re: /(^|\.)(snapchat\.com)$/i, home: 'https://www.snapchat.com/spotlight', bg: 'linear-gradient(135deg,#fffc00,#f5d800)', fg: '#111' },
 ];
 const OTHER = { id: 'other', name: 'Web', abbr: 'WEB', bg: 'linear-gradient(135deg,#8e8e93,#636366)' };
 function platformOf(url) {
@@ -649,7 +650,7 @@ function renderBrowser(m) {
   const recent = HISTORY.slice(0, 6);
   m.innerHTML = `<div class="tab">
     <form class="searchbar" id="sform">${I.search}<input id="sinput" type="search" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" placeholder="${esc(t('browser.placeholder'))}"></form>
-    <div class="tiles">${PLATFORMS.map((p) => `<button class="tile" data-p="${p.id}"><span class="tl" style="background:${p.bg}">${p.abbr}</span>${esc(p.name)}</button>`).join('')}</div>
+    <div class="tiles">${PLATFORMS.map((p) => `<button class="tile" data-p="${p.id}"><span class="tl" style="background:${p.bg}${p.fg ? ';color:' + p.fg : ''}">${p.abbr}</span>${esc(p.name)}</button>`).join('')}</div>
     <div class="pastecard">
       <h3>${esc(t('paste.title'))}</h3>
       <p>${esc(t('paste.sub'))}</p>
@@ -699,6 +700,7 @@ function looksLikeVideo(u) {
     if (/tiktok/i.test(x.hostname)) return /\/video\/|\/v\/|^\/t\//.test(p) || /^vm\.|^vt\./.test(x.hostname);
     if (/twitter|x\.com/i.test(x.hostname)) return /\/status\//.test(p) || x.hostname === 't.co';
     if (/threads/i.test(x.hostname)) return /\/post\//.test(p);
+    if (/snapchat/i.test(x.hostname)) return /^\/(spotlight|t|p|add|s|discover|@)/.test(p) || /^t\./.test(x.hostname);
     if (/facebook|fb\./i.test(x.hostname)) return /video|watch|reel|\/share\/|story/.test(p + x.search) || /fb\.watch/.test(x.hostname);
   } catch (e) {}
   return false;
@@ -764,7 +766,7 @@ function jobCard(j) {
   }
   const indet = j.status === 'queued' || j.status === 'processing' || (['downloading', 'saving'].includes(j.status) && !pct);
   return `<div class="item" data-job="${esc(j.id)}">
-    <div class="thumb" style="${j.thumbnail ? `background-image:url('${esc(j.thumbnail)}')` : ''}">${j.thumbnail ? '' : I.play}<span class="pf" style="background:${p.bg}">${p.abbr}</span></div>
+    <div class="thumb" style="${j.thumbnail ? `background-image:url('${esc(j.thumbnail)}')` : ''}">${j.thumbnail ? '' : I.play}<span class="pf" style="background:${p.bg}${p.fg ? ';color:' + p.fg : ''}">${p.abbr}</span></div>
     <div class="meta"><b>${esc(j.title || j.url)}</b><small class="${j.status === 'error' ? 'status-err' : ''}">${esc(j.status === 'error' ? (j.error || statusText) : bits.join(' · '))}</small>
       <small>${esc(j.quality || '')}</small>
       ${['done', 'error', 'canceled'].includes(j.status) ? '' : `<div class="prog ${indet ? 'indet' : ''}"><i style="width:${pct}%"></i></div>`}
@@ -816,7 +818,7 @@ function itemCard(it) {
   const sub = [it.quality, fmtBytes(it.size), fmtDate(it.created)].filter(Boolean).join(' · ');
   return `<div class="item ${sel ? 'sel' : ''}" data-item="${esc(it.id)}" role="button">
     ${State.editing ? `<span class="check">${sel ? I.check : ''}</span>` : ''}
-    <div class="thumb" style="${th ? `background-image:url('${esc(th)}')` : ''}">${th ? '' : (it.kind === 'video' ? I.play : I.music)}${it.duration ? `<span class="dur">${fmtDur(it.duration)}</span>` : ''}<span class="pf" style="background:${p.bg}">${p.abbr}</span></div>
+    <div class="thumb" style="${th ? `background-image:url('${esc(th)}')` : ''}">${th ? '' : (it.kind === 'video' ? I.play : I.music)}${it.duration ? `<span class="dur">${fmtDur(it.duration)}</span>` : ''}<span class="pf" style="background:${p.bg}${p.fg ? ';color:' + p.fg : ''}">${p.abbr}</span></div>
     <div class="meta"><b>${esc(it.title)}</b><small>${esc(sub)}</small>${it.uploader ? `<small>${esc(it.uploader)}</small>` : ''}</div>
     ${State.editing ? '' : `<button class="more" data-more="${esc(it.id)}" aria-label="more">${I.dots}</button>`}
   </div>`;
@@ -836,7 +838,7 @@ function folderList() {
   out.push({ id: '__audio', name: t('f.audio'), icon: I.music, bg: 'linear-gradient(135deg,#ff9500,#ff5e3a)', items: audio });
   for (const p of PLATFORMS.concat([OTHER])) {
     const its = Store.items.filter((i) => (i.platform || 'other') === p.id);
-    if (its.length) out.push({ id: '__p_' + p.id, name: p.name, abbr: p.abbr, bg: p.bg, items: its });
+    if (its.length) out.push({ id: '__p_' + p.id, name: p.name, abbr: p.abbr, bg: p.bg, fg: p.fg, items: its });
   }
   for (const f of FOLDERS) out.push({ id: f, name: f, icon: I.folder, bg: 'linear-gradient(135deg,#5ac8fa,#007aff)', items: Store.items.filter((i) => i.folder === f), user: true });
   return out;
@@ -876,7 +878,7 @@ function renderFolders(m) {
   }
   setTopbar(t('tab.folders'), '', `<button id="fnew">${I.plus.replace('<svg', '<svg width="24" height="24"')}</button>`);
   m.innerHTML = `<div class="tab">
-    <div class="folders">${all.map((f) => `<button class="folder" data-f="${esc(f.id)}"><span class="fi" style="background:${f.bg}">${f.icon || f.abbr}</span><b>${esc(f.name)}</b><small>${esc(f.items.length === 1 ? t('f.count1') : t('f.count', { n: numLocal(f.items.length) }))}${f.items.length ? ' · ' + fmtBytes(f.items.reduce((a, b) => a + (b.size || 0), 0)) : ''}</small></button>`).join('')}
+    <div class="folders">${all.map((f) => `<button class="folder" data-f="${esc(f.id)}"><span class="fi" style="background:${f.bg}${f.fg ? ';color:' + f.fg : ''}">${f.icon || f.abbr}</span><b>${esc(f.name)}</b><small>${esc(f.items.length === 1 ? t('f.count1') : t('f.count', { n: numLocal(f.items.length) }))}${f.items.length ? ' · ' + fmtBytes(f.items.reduce((a, b) => a + (b.size || 0), 0)) : ''}</small></button>`).join('')}
       <button class="folder" id="fnew2" style="border:1.5px dashed var(--sep);background:none;align-items:center;justify-content:center;color:var(--accent)">${I.plus.replace('<svg', '<svg width="30" height="30"')}<b>${esc(t('f.new'))}</b></button></div>
     ${!Store.items.length ? `<div class="empty">${I.archive}<b>${esc(t('f.libEmptyT'))}</b>${esc(t('f.libEmpty'))}</div>` : ''}
   </div>`;
@@ -1027,7 +1029,7 @@ function showChoices(sh, url, info, entryIdx) {
     startJob(auto, 0); closeTop(); toast(t('an.added', { q: auto.label })); setTab('downloads'); return;
   }
   $('.sh-body', sh).innerHTML = `
-    <div class="vinfo"><div class="thumb" style="${cur.thumbnail ? `background-image:url('${esc(cur.thumbnail)}')` : ''}">${cur.thumbnail ? '' : I.play}${cur.duration ? `<span class="dur">${fmtDur(cur.duration)}</span>` : ''}<span class="pf" style="background:${p.bg}">${p.abbr}</span></div>
+    <div class="vinfo"><div class="thumb" style="${cur.thumbnail ? `background-image:url('${esc(cur.thumbnail)}')` : ''}">${cur.thumbnail ? '' : I.play}${cur.duration ? `<span class="dur">${fmtDur(cur.duration)}</span>` : ''}<span class="pf" style="background:${p.bg}${p.fg ? ';color:' + p.fg : ''}">${p.abbr}</span></div>
       <div style="min-width:0"><b>${esc(cur.title || p.name)}</b><small>${esc([info.uploader || info.channel, p.name].filter(Boolean).join(' · '))}</small></div></div>
     ${entries && entries.length > 1 ? `<div class="chips" style="margin-top:12px">${entries.map((e, i) => `<button class="chip ${i === entryIdx ? 'on' : ''}" data-e="${i}">${esc(t('an.item', { n: numLocal(i + 1) }))}</button>`).join('')}</div>` : ''}
     <div class="group" style="margin-top:12px"><button class="row tap" id="anFolder"><span class="ic">${I.folder}</span><span class="lbl">${esc(t('an.saveIn'))}</span><span class="val" id="anFolderV">${esc(folder || t('f.none'))}</span>${I.chev}</button></div>
@@ -1111,7 +1113,7 @@ function renderSettings(m) {
 
     <div class="group-title">${esc(t('set.about'))}</div>
     <div class="group">
-      <div class="row noicon"><span class="lbl">${esc(t('set.sites'))}<small>YouTube · Instagram · Facebook · X (Twitter) · TikTok · Threads ${esc(t('set.sitesMore'))}</small></span></div>
+      <div class="row noicon"><span class="lbl">${esc(t('set.sites'))}<small>YouTube · Instagram · Facebook · X (Twitter) · TikTok · Threads · Snapchat ${esc(t('set.sitesMore'))}</small></span></div>
       ${!N ? `<a class="row tap noicon" href="${APK_URL}"><span class="lbl" style="color:var(--accent)">${esc(t('set.getApk'))}</span></a>` : `<a class="row tap noicon" href="${WEB_URL}" target="_blank" rel="noopener"><span class="lbl" style="color:var(--accent)">${esc(t('set.webApp'))}</span></a>`}
       <a class="row tap noicon" href="${REPO}" target="_blank" rel="noopener"><span class="lbl" style="color:var(--accent)">${esc(t('set.source'))}</span></a>
     </div>

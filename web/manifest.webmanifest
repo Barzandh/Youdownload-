@@ -1,7 +1,7 @@
 {
   "name": "VidVault",
   "short_name": "VidVault",
-  "description": "Save videos from YouTube, Instagram, Facebook, X, TikTok and Threads to watch offline.",
+  "description": "Save videos from YouTube, Instagram, Facebook, X, TikTok, Threads and Snapchat to watch offline.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

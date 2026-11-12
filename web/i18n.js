@@ -16,10 +16,10 @@
 
     'browser.placeholder': 'Search or enter website name',
     'browser.recent': 'Recently visited',
-    'browser.webHint': 'Tip: in the YouTube, Instagram or TikTok app tap Share → Copy link, then come back and tap “Paste link”. The video downloads straight to VidVault and stays available offline.',
+    'browser.webHint': 'Tip: in the YouTube, Instagram, TikTok or Snapchat app tap Share → Copy link, then come back and tap “Paste link”. The video downloads straight to VidVault and stays available offline.',
     'browser.appHint': 'Open a site above and tap the blue download button on any video page — or share a link to VidVault from any app.',
     'paste.title': 'Download a video',
-    'paste.sub': 'Paste a link from YouTube, Instagram, Facebook, X, TikTok or Threads.',
+    'paste.sub': 'Paste a link from YouTube, Instagram, Facebook, X, TikTok, Threads or Snapchat.',
     'paste.go': 'Download', 'paste.paste': 'Paste link',
     'adblock.on': 'Ad Block is on', 'adblock.off': 'Ad Block is off',
     'bm.title': 'Bookmarks', 'bm.empty': 'No bookmarks yet', 'bm.addLast': 'Bookmark the last page', 'bm.addUrl': 'Add a website',
@@ -49,7 +49,7 @@
     'ns.connect': 'Enter server address', 'ns.guide': 'Step-by-step setup guide', 'ns.android': 'Get the Android app instead',
 
     'set.support': 'Contact Support', 'set.shareApp': 'Share VidVault', 'set.checkUpdate': 'Check for Updates', 'set.updated': 'Updating…',
-    'set.shareText': 'VidVault — save videos from YouTube, Instagram, Facebook, X, TikTok and Threads to watch offline.',
+    'set.shareText': 'VidVault — save videos from YouTube, Instagram, Facebook, X, TikTok, Threads and Snapchat to watch offline.',
     'set.notify': 'Enable notifications', 'set.notifyNote': 'Get a notification when a download finishes (no spam).',
     'set.pin': 'Passcode Lock',
     'set.vpn': 'VPN / Proxy', 'set.vpnNote': 'Route downloads through your own VPN or proxy server (SOCKS5 or HTTP). Useful when a site is blocked on your network.',
@@ -105,10 +105,10 @@
 
     'browser.placeholder': 'ابحث أو أدخل اسم الموقع',
     'browser.recent': 'زيارات حديثة',
-    'browser.webHint': 'نصيحة: في تطبيق يوتيوب أو إنستغرام أو تيك توك اضغط مشاركة ← نسخ الرابط، ثم ارجع واضغط «لصق الرابط». يُنزَّل الفيديو مباشرة إلى VidVault ويبقى متاحًا دون إنترنت.',
+    'browser.webHint': 'نصيحة: في تطبيق يوتيوب أو إنستغرام أو تيك توك أو سناب شات اضغط مشاركة ← نسخ الرابط، ثم ارجع واضغط «لصق الرابط». يُنزَّل الفيديو مباشرة إلى VidVault ويبقى متاحًا دون إنترنت.',
     'browser.appHint': 'افتح أحد المواقع أعلاه واضغط زر التنزيل الأزرق في أي صفحة فيديو — أو شارك الرابط إلى VidVault من أي تطبيق.',
     'paste.title': 'تنزيل فيديو',
-    'paste.sub': 'الصق رابطًا من يوتيوب أو إنستغرام أو فيسبوك أو X أو تيك توك أو ثريدز.',
+    'paste.sub': 'الصق رابطًا من يوتيوب أو إنستغرام أو فيسبوك أو X أو تيك توك أو ثريدز أو سناب شات.',
     'paste.go': 'تنزيل', 'paste.paste': 'لصق الرابط',
     'adblock.on': 'حظر الإعلانات مفعّل', 'adblock.off': 'حظر الإعلانات متوقف',
     'bm.title': 'الإشارات المرجعية', 'bm.empty': 'لا توجد إشارات مرجعية بعد', 'bm.addLast': 'حفظ آخر صفحة', 'bm.addUrl': 'إضافة موقع',
@@ -138,7 +138,7 @@
     'ns.connect': 'إدخال عنوان الخادم', 'ns.guide': 'دليل الإعداد خطوة بخطوة', 'ns.android': 'تنزيل تطبيق أندرويد بدلًا من ذلك',
 
     'set.support': 'التواصل مع الدعم', 'set.shareApp': 'مشاركة VidVault', 'set.checkUpdate': 'التحقق من التحديثات', 'set.updated': 'جارٍ التحديث…',
-    'set.shareText': 'VidVault — احفظ الفيديوهات من يوتيوب وإنستغرام وفيسبوك وX وتيك توك وثريدز لمشاهدتها دون إنترنت.',
+    'set.shareText': 'VidVault — احفظ الفيديوهات من يوتيوب وإنستغرام وفيسبوك وX وتيك توك وثريدز وسناب شات لمشاهدتها دون إنترنت.',
     'set.notify': 'تفعيل الإشعارات', 'set.notifyNote': 'استلم إشعارًا عند انتهاء التنزيل (بلا إزعاج).',
     'set.pin': 'قفل برمز الدخول',
     'set.vpn': 'VPN / بروكسي', 'set.vpnNote': 'مرّر التنزيلات عبر VPN أو خادم بروكسي خاص بك (SOCKS5 أو HTTP). مفيد إذا كان الموقع محجوبًا على شبكتك.',
