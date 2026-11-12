@@ -1,6 +1,7 @@
 /* VidVault translations — English and Arabic */
 (function () {
   const en = {
+    'upd.ready': 'Update ready — it will be used next time you open VidVault', 'upd.latest': 'You have the latest version', 'upd.offline': 'Connect to the internet to check for updates',
     'engine.public': 'Free public servers', 'pub.video': 'video', 'pub.best': 'Best quality', 'pub.bestSub': 'Highest resolution the post has', 'pub.upTo': 'or the closest available',
     'pub.vp9': 'WebM · VP9 — plays on newer iPhones', 'pub.original': 'original', 'pub.asking': 'Finding a download server ({n}/{total})…',
     'pub.private': 'This post is private — only public videos can be saved', 'pub.unavailable': 'The video couldn’t be fetched (deleted, private or blocked)',
@@ -90,6 +91,7 @@
   };
 
   const ar = {
+    'upd.ready': 'التحديث جاهز — سيُستخدم عند فتح VidVault في المرة القادمة', 'upd.latest': 'لديك أحدث إصدار', 'upd.offline': 'اتصل بالإنترنت للتحقق من التحديثات',
     'engine.public': 'خوادم عامة مجانية', 'pub.video': 'فيديو', 'pub.best': 'أفضل جودة', 'pub.bestSub': 'أعلى دقة متاحة في المنشور', 'pub.upTo': 'أو أقرب دقة متاحة',
     'pub.vp9': 'WebM · VP9 — يعمل على أجهزة الآيفون الحديثة', 'pub.original': 'الأصلي', 'pub.asking': 'جارٍ البحث عن خادم تنزيل ({n}/{total})…',
     'pub.private': 'هذا المنشور خاص — يمكن حفظ الفيديوهات العامة فقط', 'pub.unavailable': 'تعذّر جلب الفيديو (محذوف أو خاص أو محجوب)',

@@ -1122,7 +1122,18 @@ function renderSettings(m) {
   const on = (id, fn) => { const el = $('#' + id, m); if (el) el.onclick = fn; };
   const chg = (id, fn) => { const el = $('#' + id, m); if (el) el.onchange = () => fn(el.checked); };
   on('stShare', () => shareText(t('set.shareText') + '\n' + WEB_URL + '\nAndroid: ' + APK_URL, 'VidVault'));
-  on('stUpdate', () => { if (N) N.openExternal(REPO + '/releases/latest'); else { navigator.serviceWorker?.getRegistration().then((r) => r && r.update()); toast(t('set.updated')); setTimeout(() => location.reload(), 900); } });
+  on('stUpdate', async () => {
+    if (N) return N.openExternal(REPO + '/releases/latest');
+    if (!navigator.onLine) return toast(t('upd.offline'));
+    toast(t('set.updated'));
+    try {
+      const r = await navigator.serviceWorker.getRegistration(); if (!r) return location.reload();
+      await r.update();
+      const w = r.installing || r.waiting;
+      if (!w) return toast(t('upd.latest'));
+      // the new version is downloading; the page reloads by itself when it takes over
+    } catch (e) { toast(t('upd.offline')); }
+  });
   const nb = $('#stNotif', m);
   if (nb && nb.tagName === 'BUTTON') nb.onclick = enableNotifications; else chg('stNotif', (v) => { save({ notify: v }); render(); });
   on('stPin', () => { State.settingsPage = 'pin'; render(); });
@@ -1359,15 +1370,31 @@ async function shareText(text, title) {
 }
 
 /* ============================== start ============================== */
+function setupOffline() {
+  if (N || !('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+    // look for a newer version whenever the app comes back to the front with internet
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && navigator.onLine) reg.update().catch(() => {}); });
+  }).catch(() => {});
+  // a new version was installed in the background: switch to it when nothing is in progress
+  let switching = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (switching || !hadController) return;
+    if (Jobs.active().length || hasLayer() || $('.lock')) { toast(t('upd.ready')); return; }
+    switching = true; location.reload();
+  });
+  const hadController = !!navigator.serviceWorker.controller;
+}
 async function start() {
+  setupOffline();
   applyLook();
   if (N) { try { N.setPrefs(JSON.stringify(S)); } catch (e) {} try { safeJSON(N.jobs(), []).forEach((j) => Jobs.list.push(j)); } catch (e) {} }
-  await Store.refresh(); await Store.loadThumbs();
+  await Store.refresh();
   render();
   lockApp();
-  if (!N && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // thumbnails load after the first screen is shown, so opening stays instant
+  Store.loadThumbs().then(() => { if (State.tab === 'folders' || State.tab === 'downloads') render(); });
   if (!N && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-  // links shared to the web app (Android share target) or ?url= in the address
   const q = new URLSearchParams(location.search);
   const shared = extractUrl(q.get('url') || q.get('text') || q.get('title') || '');
   if (shared) { history.replaceState(null, '', location.pathname); setTimeout(() => analyze(shared), 300); }
