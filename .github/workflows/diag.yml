@@ -1,5 +1,5 @@
-# Checks which free download servers work right now (results go to the "diag" branch).
-name: Diagnose downloads
+# Every 6 hours, checks which free download servers work and publishes live.json on the "diag" branch.
+name: Check download servers
 on:
   workflow_dispatch:
   push:
@@ -9,18 +9,17 @@ on:
     - cron: '17 */6 * * *'
 permissions:
   contents: write
+concurrency:
+  group: diag
+  cancel-in-progress: true
 jobs:
-  diag:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q -U "yt-dlp[default]"
-      - run: python3 .github/diag/diag3.py 2>&1 | tee diag3.txt
-
-      - name: Save results
-        if: always()
+      - run: python3 .github/diag/health.py
+      - name: Publish live.json
         run: |
           git config --global user.name "VidVault CI"; git config --global user.email "ci@users.noreply.github.com"
-          mkdir /tmp/d && cp diag*.json diag*.txt /tmp/d/ 2>/dev/null || true
-          cd /tmp/d && git init -q -b diag && git add -A && git commit -q -m "diag $(date -u +%FT%TZ)"
+          cd out && git init -q -b diag && git add -A && git commit -q -m "Server check $(date -u +%FT%TZ)"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" diag
