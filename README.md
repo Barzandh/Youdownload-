@@ -24,20 +24,16 @@ Save videos from **YouTube, Instagram, Facebook, X (Twitter), TikTok and Threads
 The Android app downloads on the phone itself (it bundles [yt-dlp](https://github.com/yt-dlp/yt-dlp) and ffmpeg), so you don't need a server. It updates its download engine once a day; **Settings → Update download engine** does it on demand. If a site stops working, try that first.
 
 ## iPhone / iPad / web setup
-Apple doesn't allow APK files, and browsers aren't allowed to pull videos from these sites directly. On iPhone the web app therefore sends links to **your own free VidVault server** (the `server/` folder), which fetches the video and hands the finished file back to your phone. You only set this up once:
+1. Open **https://barzandh.github.io/Youdownload-/** in **Safari** → **Share** → **Add to Home Screen**.
+2. Paste a link and pick a quality. That's it: the web app downloads straight away through free public download servers ([cobalt](https://github.com/imputnet/cobalt) instances, tried one after another). The finished video is saved inside the app so you can watch it offline. Tap **Save to Photos / Files** to put a copy in your Photos.
 
-1. **Deploy the server (free, about 3 minutes):** open
-   **[Deploy to Render](https://render.com/deploy?repo=https://github.com/Barzandh/Youdownload-)**, sign in, type any password for `ACCESS_KEY`, and press **Deploy**.
-2. When it shows **Live**, copy its address (like `https://vidvault-xxxx.onrender.com`).
-3. On your iPhone, open **https://barzandh.github.io/Youdownload-/** in **Safari** → **Share** → **Add to Home Screen**.
-4. Open VidVault from the Home Screen → **Settings → Download server**, paste the address and your password, then tap **Save & test**.
+The list of public servers lives in [`web/instances.json`](web/instances.json). If one stops working, edit that file and the app picks up the change without an update.
 
-Downloaded videos are kept inside the app for offline viewing. Use **⋯ → Save to Photos / Files** to put a copy in Photos.
+**Optional: your own server.** Public servers can be busy, and YouTube sometimes blocks them. Your own free server is more reliable and lists every exact resolution:
+1. Open **[Deploy to Render](https://render.com/deploy?repo=https://github.com/Barzandh/Youdownload-)**, sign in, type any password for `ACCESS_KEY`, and press **Deploy**.
+2. In VidVault go to **Settings → Download server**, paste the address (like `https://vidvault-xxxx.onrender.com`) and your password, then tap **Save & test**.
 
-Notes:
-- Render's free server sleeps after 15 minutes idle, so the first link after a break can take up to a minute.
-- Some sites block cloud servers. If YouTube says *"Sign in to confirm you're not a bot"*, add your browser cookies (Netscape format) as a `COOKIES` environment variable on Render, or use the Android app, which downloads from your own connection.
-- Any Docker host works too: `docker build -f server/Dockerfile -t vidvault . && docker run -p 8000:8000 -e ACCESS_KEY=yourpassword vidvault`.
+Any Docker host works too: `docker build -f server/Dockerfile -t vidvault . && docker run -p 8000:8000 -e ACCESS_KEY=yourpassword vidvault`.
 
 ## Project layout
 ```
@@ -56,5 +52,5 @@ Only download videos you own or have permission to save, and follow each site's 
 **VidVault** يحفظ الفيديوهات من يوتيوب وإنستغرام وفيسبوك وX وتيك توك وثريدز بكل الدقّات المتاحة (من 144p حتى 4K) أو كصوت فقط، لتشاهدها دون إنترنت.
 
 - **أندرويد (هواتف وأجهزة لوحية):** نزّل [VidVault.apk](https://github.com/Barzandh/Youdownload-/releases/latest/download/VidVault.apk)، ثم افتحه واضغط «تثبيت».
-- **آيفون وآيباد:** افتح https://barzandh.github.io/Youdownload-/ في Safari ← مشاركة ← «إضافة إلى الشاشة الرئيسية». ثم أنشئ خادمك المجاني مرة واحدة عبر زر [Deploy to Render](https://render.com/deploy?repo=https://github.com/Barzandh/Youdownload-)، والصق عنوانه وكلمة المرور في: الإعدادات ← خادم التنزيل.
+- **آيفون وآيباد:** افتح https://barzandh.github.io/Youdownload-/ في Safari ← مشاركة ← «إضافة إلى الشاشة الرئيسية». الصق الرابط واختر الجودة، فيُنزَّل الفيديو مباشرة دون أي إعداد.
 - يمكنك تغيير اللغة من: الإعدادات ← اللغة ← العربية.
