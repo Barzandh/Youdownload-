@@ -1,0 +1,86 @@
+# Builds the Android APKs on GitHub's servers (published under Releases)
+# and publishes the web app to GitHub Pages (gh-pages branch).
+name: Build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the web app to the gh-pages branch
+        run: |
+          git config user.name "VidVault CI"; git config user.email "ci@users.noreply.github.com"
+          rm -rf /tmp/site && cp -r web /tmp/site && touch /tmp/site/.nojekyll
+          cd /tmp/site && git init -q -b gh-pages && git add -A && git commit -q -m "Web app from ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Put the web app inside the APK
+        run: |
+          W=android/app/src/main/assets/www
+          rm -rf "$W"; mkdir -p "$W"
+          cp -r web/* "$W/"
+      - name: Make the signing key
+        env:
+          SECRET_KEY: ${{ secrets.VIDVAULT_KEY }}
+        run: |
+          # Uses the private VIDVAULT_KEY secret if set; otherwise a fixed built-in password,
+          # so every build has the same key and updates install over the old app.
+          if [ ${#SECRET_KEY} -ge 16 ]; then KEY="$SECRET_KEY"; else
+            echo "::warning title=Using built-in signing key::No VIDVAULT_KEY secret set; signing with the built-in key."
+            KEY="vidvault-built-in-signing-key-v1"
+          fi
+          echo "VIDVAULT_KEY=$KEY" >> "$GITHUB_ENV"
+          pip install --quiet cryptography
+          VIDVAULT_KEY="$KEY" python3 android/sign/derive_key.py "$RUNNER_TEMP/vidvault.p12"
+          echo "VIDVAULT_KEYSTORE=$RUNNER_TEMP/vidvault.p12" >> "$GITHUB_ENV"
+      - name: Build the APKs
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          set -o pipefail
+          gradle -p android assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Publish the downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          O=android/app/build/outputs/apk/release
+          ls -l $O
+          cp $O/app-universal-release.apk VidVault.apk
+          cp $O/app-arm64-v8a-release.apk VidVault-arm64.apk
+          cp $O/app-armeabi-v7a-release.apk VidVault-armv7.apk
+          cp $O/app-x86_64-release.apk VidVault-x86_64.apk
+          gh release create "android-${{ github.run_number }}" VidVault.apk VidVault-arm64.apk VidVault-armv7.apk VidVault-x86_64.apk \
+            --title "VidVault for Android 1.0.${{ github.run_number }}" \
+            --notes "**VidVault.apk** works on every Android phone and tablet. The smaller **VidVault-arm64.apk** fits almost all phones from the last 7 years; **armv7** is for older phones. Open the file on your phone and tap Install (allow 'Install unknown apps' for your browser if asked)." \
+            --latest
+      - name: Keep the build log if something failed
+        if: failure()
+        run: |
+          git config user.name "VidVault CI"; git config user.email "ci@users.noreply.github.com"
+          cp build.log /tmp/build.log 2>/dev/null || echo "no log" > /tmp/build.log
+          git checkout --orphan ci-log
+          git rm -rf -q --cached . >/dev/null
+          cp /tmp/build.log build.log
+          git add -f build.log
+          git commit -q -m "APK build log (run ${{ github.run_number }})"
+          git push -f origin ci-log

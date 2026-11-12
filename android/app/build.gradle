@@ -1,0 +1,49 @@
+plugins { id 'com.android.application' }
+
+def vCode = (System.getenv('VERSION_CODE') ?: '1') as Integer
+def vName = System.getenv('VERSION_NAME') ?: '1.0.0'
+
+android {
+  namespace 'com.barzandh.vidvault'
+  compileSdk 34
+  defaultConfig {
+    applicationId 'com.barzandh.vidvault'
+    minSdk 24
+    targetSdk 34
+    versionCode vCode
+    versionName vName
+  }
+  splits {
+    abi {
+      enable true
+      reset()
+      include 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
+      universalApk true
+    }
+  }
+  signingConfigs {
+    release {
+      // made on the build server by sign/derive_key.py (same key every build, so updates install over the old app)
+      storeFile file(System.getenv('VIDVAULT_KEYSTORE') ?: 'missing.p12')
+      storeType 'pkcs12'
+      storePassword System.getenv('VIDVAULT_KEY') ?: ''
+      keyAlias 'vidvault'
+      keyPassword System.getenv('VIDVAULT_KEY') ?: ''
+    }
+  }
+  buildTypes {
+    release { minifyEnabled false; signingConfig signingConfigs.release }
+  }
+  packaging { jniLibs { useLegacyPackaging = true } }   // yt-dlp's python/ffmpeg must be extracted on install
+  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+  androidResources { noCompress 'png', 'woff2' }
+  lint { abortOnError false; checkReleaseBuilds false }
+}
+
+dependencies {
+  implementation platform('org.jetbrains.kotlin:kotlin-bom:1.9.24')
+  implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+  implementation 'io.github.junkfood02.youtubedl-android:library:0.17.4'
+  implementation 'io.github.junkfood02.youtubedl-android:ffmpeg:0.17.4'
+  implementation 'androidx.core:core:1.13.1'
+}

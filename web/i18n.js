@@ -1,0 +1,168 @@
+/* VidVault translations — English and Arabic */
+(function () {
+  const en = {
+    'tab.folders': 'Folders', 'tab.downloads': 'Downloads', 'tab.browser': 'Browser', 'tab.settings': 'Settings',
+    ok: 'OK', cancel: 'Cancel', done: 'Done', edit: 'Edit', delete: 'Delete', retry: 'Try again', on: 'On', off: 'Off', copied: 'Copied',
+
+    'browser.placeholder': 'Search or enter website name',
+    'browser.recent': 'Recently visited',
+    'browser.webHint': 'Tip: open a site above, copy a video\'s link (Share → Copy link), come back and tap “Paste link”. On Android you can also share a link straight to VidVault.',
+    'browser.appHint': 'Open a site above and tap the blue download button on any video page — or share a link to VidVault from any app.',
+    'paste.title': 'Download a video',
+    'paste.sub': 'Paste a link from YouTube, Instagram, Facebook, X, TikTok or Threads.',
+    'paste.go': 'Download', 'paste.paste': 'Paste link',
+    'adblock.on': 'Ad Block is on', 'adblock.off': 'Ad Block is off',
+    'bm.title': 'Bookmarks', 'bm.empty': 'No bookmarks yet', 'bm.addLast': 'Bookmark the last page', 'bm.addUrl': 'Add a website',
+    'hist.title': 'History', 'hist.empty': 'No history yet', 'hist.clear': 'Clear',
+
+    'dl.saved': 'Saved videos', 'dl.used': 'Space used', 'dl.active': 'Downloading', 'dl.queue': 'Queue', 'dl.recent': 'Recently saved',
+    'dl.seeAll': 'See all', 'dl.clear': 'Clear', 'dl.emptyT': 'No downloads yet', 'dl.empty': 'Paste a link or open a site in the Browser tab to save your first video.', 'dl.start': 'Open Browser',
+    'job.queued': 'Waiting…', 'job.downloading': 'Downloading', 'job.processing': 'Merging video and sound…', 'job.saving': 'Saving to this device',
+    'job.done': 'Saved — available offline', 'job.error': 'Failed', 'job.canceled': 'Canceled', 'job.waitingWifi': 'Waiting for Wi-Fi',
+    'notif.done': 'Download complete', 'notif.failed': 'Download failed',
+
+    'f.all': 'All Videos', 'f.audio': 'Audio', 'f.count': '{n} items', 'f.count1': '1 item', 'f.new': 'New Folder', 'f.namePh': 'Folder name', 'f.exists': 'A folder with that name already exists',
+    'f.search': 'Search downloads', 'f.selectAll': 'Select all', 'f.moveSel': 'Move ({n})', 'f.deleteSel': 'Delete ({n})', 'f.moved': 'Moved',
+    'f.deleteQ': 'Delete {n} items?', 'f.deleteNote': 'They will be removed from this device.', 'f.emptyT': 'Nothing here yet', 'f.empty': 'Downloads you save into this folder appear here.',
+    'f.rename': 'Rename', 'f.delete': 'Delete Folder', 'f.deleteFolderQ': 'Delete “{name}”?', 'f.deleteFolderNote': 'The videos inside stay in All Videos.',
+    'f.libEmptyT': 'Your library is empty', 'f.libEmpty': 'Every video you download is kept here so you can watch it without Wi-Fi.', 'f.none': 'No folder', 'f.moveTo': 'Move to folder',
+    'm.play': 'Play', 'm.share': 'Share', 'm.gallery': 'Save to Gallery', 'm.saveFiles': 'Save to Photos / Files', 'm.openWith': 'Open with another app',
+    'm.move': 'Move to folder', 'm.rename': 'Rename', 'm.source': 'Open original page', 'm.delete': 'Delete', 'm.deleteQ': 'Delete this download?',
+
+    'an.title': 'Download', 'an.loading': 'Reading the {site} link…', 'an.failed': 'Couldn’t read this link',
+    'an.failedTip': 'Check that the post is public and the link is complete. Private, age-restricted or deleted videos can’t be saved.',
+    'an.choose': 'Choose quality', 'an.saveIn': 'Save in', 'an.item': 'Video {n}', 'an.all': 'Download all {n} (best quality)',
+    'an.added': 'Added to downloads · {q}', 'an.addedN': '{n} videos added to downloads',
+    'an.note': 'Sizes are estimates. All the resolutions the site offers are listed. 4K/VP9 files play in the VidVault player on Android; on iPhone pick 1080p or lower if a file won’t play.',
+    'q.original': 'Original', 'q.bestAvailable': 'Best available', 'q.audio': 'Audio only', 'q.audioSub': 'Original sound', 'q.mp3Sub': 'Works everywhere',
+    'ns.title': 'Connect a download server', 'ns.body': 'Browsers aren’t allowed to fetch videos from these sites directly, so the web app uses your own free VidVault server to do it. Setting one up takes about 3 minutes and only has to be done once. The Android app doesn’t need this.',
+    'ns.connect': 'Enter server address', 'ns.guide': 'Step-by-step setup guide', 'ns.android': 'Get the Android app instead',
+
+    'set.support': 'Contact Support', 'set.shareApp': 'Share VidVault', 'set.checkUpdate': 'Check for Updates', 'set.updated': 'Updating…',
+    'set.shareText': 'VidVault — save videos from YouTube, Instagram, Facebook, X, TikTok and Threads to watch offline.',
+    'set.notify': 'Enable notifications', 'set.notifyNote': 'Get a notification when a download finishes (no spam).',
+    'set.pin': 'Passcode Lock',
+    'set.vpn': 'VPN / Proxy', 'set.vpnNote': 'Route downloads through your own VPN or proxy server (SOCKS5 or HTTP). Useful when a site is blocked on your network.',
+    'set.vpnPrompt': 'Enter your proxy address, e.g. socks5://host:1080 or http://user:pass@host:8080',
+    'set.browser': 'Browser', 'set.search': 'Search Engine', 'set.ua': 'User Agent', 'set.adblock': 'Ad Block', 'set.clear': 'Clear History and Website Data',
+    'set.clearNote': 'This clears browsing history, cookies and cached pages. Your downloads are kept.', 'set.clearBtn': 'Clear', 'set.cleared': 'History and website data cleared',
+    'set.wifi': 'Wi-Fi Sharing', 'set.wifiNote': 'Open the address above in a browser on a computer on the same Wi-Fi to view and copy your downloads.', 'set.wifiWeb': 'Wi-Fi Sharing is available in the Android app.',
+    'set.downloads': 'Downloads', 'set.engine': 'Download engine', 'set.server': 'Download server', 'set.serverOpt': 'Optional on Android', 'set.notSet': 'Not set',
+    'set.quality': 'Default quality', 'set.h264': 'Prefer compatible video (H.264)', 'set.h264Note': 'Plays on every phone and TV. Turn off to get VP9/AV1 when it’s sharper.',
+    'set.wifiOnly': 'Download on Wi-Fi only', 'set.autoGallery': 'Also save to Gallery', 'set.updateEngine': 'Update download engine', 'set.updateEngineNote': 'Get the latest site fixes (yt-dlp).',
+    'set.storage': 'Storage used', 'set.wipe': 'Delete All Downloads', 'set.wipeNote': 'All {n} downloads will be removed from this device.', 'set.wiped': 'All downloads deleted',
+    'set.appearance': 'Appearance', 'set.dark': 'Dark Mode', 'set.color': 'Color', 'set.lang': 'Language',
+    'set.about': 'About', 'set.sites': 'Supported sites', 'set.sitesMore': 'and 1,000+ more', 'set.getApk': 'Download the Android app (APK)', 'set.webApp': 'Open the web app', 'set.source': 'Source code on GitHub',
+    'set.legal': 'Only download videos you own or have permission to save, and respect each site’s terms. VidVault is not affiliated with any of these sites.',
+    'theme.dark': 'On', 'theme.light': 'Off', 'theme.system': 'System',
+    'ua.default': 'Default', 'ua.desktop': 'Desktop', 'ua.iphone': 'iPhone', 'ua.android': 'Android',
+    'engine.device': 'On this phone', 'engine.server': 'My server',
+    'qd.ask': 'Ask every time', 'qd.best': 'Best available', 'qd.2160': 'Up to 4K', 'qd.1080': 'Up to 1080p', 'qd.720': 'Up to 720p', 'qd.480': 'Up to 480p', 'qd.360': 'Up to 360p', 'qd.audio': 'Audio only',
+    'eng.updating': 'Updating download engine…', 'eng.latest': 'Already up to date {v}', 'eng.updated': 'Updated to {v}', 'eng.failed': 'Update failed:',
+
+    'srv.intro': 'The web app sends links to your own VidVault server, which fetches the video in the quality you choose. The finished file is then stored on this device for offline viewing.',
+    'srv.introApp': 'The Android app downloads on the phone itself. A server is only needed if you switch the download engine to “My server”.',
+    'srv.address': 'Server address', 'srv.key': 'Access key', 'srv.keyPh': 'The ACCESS_KEY you set on the server', 'srv.save': 'Save & test',
+    'srv.testing': 'Connecting… (a sleeping free server can take up to a minute to wake up)', 'srv.ok': 'Connected', 'srv.sleepy': 'Free servers sleep when idle — wait a minute and try again.',
+    'srv.howT': 'Set up a free server',
+    'srv.how': '1. Tap “Deploy to Render” below and sign in (free).<br>2. Type any password in ACCESS_KEY and press Deploy.<br>3. When it’s live, copy its address (…onrender.com) and paste it above with your password.',
+    'srv.deploy': 'Deploy to Render (free)',
+
+    'pin.on': 'Turn Passcode On', 'pin.off': 'Turn Passcode Off', 'pin.change': 'Change Passcode', 'pin.note': 'Ask for a 4-digit passcode when VidVault opens. Your library stays hidden until it’s entered.',
+    'pin.bio': 'Unlock with fingerprint / face', 'pin.new': 'Enter a new passcode', 'pin.confirm': 'Enter it again', 'pin.current': 'Enter your passcode', 'pin.enter': 'Enter Passcode',
+    'pin.mismatch': 'Passcodes didn’t match', 'pin.set': 'Passcode set', 'pin.wrong': 'Wrong passcode', 'pin.bioPrompt': 'Unlock VidVault',
+
+    'err.noLink': 'Paste a video link first', 'err.noLinkClipboard': 'No link found on the clipboard — copy the video link first',
+    'err.serverUnreachable': 'Can’t reach your server. Check the address and that it’s running.', 'err.badKey': 'The server rejected the access key',
+    'err.badProxy': 'The proxy must start with socks5://, http:// or https://', 'err.cantPlay': 'This file can’t be played here — try Share or Open with another app',
+    'err.missingFile': 'The file is missing from this device', 'err.noWifi': 'Connect to Wi-Fi first', 'err.notifDenied': 'Notifications are blocked in system settings',
+    'err.notifUnsupported': 'On iPhone, add VidVault to the Home Screen first to get notifications',
+  };
+
+  const ar = {
+    'tab.folders': 'المجلدات', 'tab.downloads': 'التنزيلات', 'tab.browser': 'المتصفح', 'tab.settings': 'الإعدادات',
+    ok: 'موافق', cancel: 'إلغاء', done: 'تم', edit: 'تعديل', delete: 'حذف', retry: 'حاول مرة أخرى', on: 'مفعّل', off: 'متوقف', copied: 'تم النسخ',
+
+    'browser.placeholder': 'ابحث أو أدخل اسم الموقع',
+    'browser.recent': 'زيارات حديثة',
+    'browser.webHint': 'نصيحة: افتح أحد المواقع أعلاه، وانسخ رابط الفيديو (مشاركة ← نسخ الرابط)، ثم ارجع واضغط «لصق الرابط». في أندرويد يمكنك مشاركة الرابط مباشرةً إلى VidVault.',
+    'browser.appHint': 'افتح أحد المواقع أعلاه واضغط زر التنزيل الأزرق في أي صفحة فيديو — أو شارك الرابط إلى VidVault من أي تطبيق.',
+    'paste.title': 'تنزيل فيديو',
+    'paste.sub': 'الصق رابطًا من يوتيوب أو إنستغرام أو فيسبوك أو X أو تيك توك أو ثريدز.',
+    'paste.go': 'تنزيل', 'paste.paste': 'لصق الرابط',
+    'adblock.on': 'حظر الإعلانات مفعّل', 'adblock.off': 'حظر الإعلانات متوقف',
+    'bm.title': 'الإشارات المرجعية', 'bm.empty': 'لا توجد إشارات مرجعية بعد', 'bm.addLast': 'حفظ آخر صفحة', 'bm.addUrl': 'إضافة موقع',
+    'hist.title': 'السجل', 'hist.empty': 'لا يوجد سجل بعد', 'hist.clear': 'مسح',
+
+    'dl.saved': 'فيديوهات محفوظة', 'dl.used': 'المساحة المستخدمة', 'dl.active': 'قيد التنزيل', 'dl.queue': 'قائمة الانتظار', 'dl.recent': 'المحفوظة حديثًا',
+    'dl.seeAll': 'عرض الكل', 'dl.clear': 'مسح', 'dl.emptyT': 'لا توجد تنزيلات بعد', 'dl.empty': 'الصق رابطًا أو افتح موقعًا من تبويب المتصفح لحفظ أول فيديو.', 'dl.start': 'فتح المتصفح',
+    'job.queued': 'في الانتظار…', 'job.downloading': 'جارٍ التنزيل', 'job.processing': 'جارٍ دمج الصورة والصوت…', 'job.saving': 'جارٍ الحفظ على الجهاز',
+    'job.done': 'تم الحفظ — متاح دون إنترنت', 'job.error': 'فشل', 'job.canceled': 'أُلغي', 'job.waitingWifi': 'بانتظار شبكة Wi-Fi',
+    'notif.done': 'اكتمل التنزيل', 'notif.failed': 'فشل التنزيل',
+
+    'f.all': 'كل الفيديوهات', 'f.audio': 'الصوتيات', 'f.count': '{n} عنصر', 'f.count1': 'عنصر واحد', 'f.new': 'مجلد جديد', 'f.namePh': 'اسم المجلد', 'f.exists': 'يوجد مجلد بهذا الاسم',
+    'f.search': 'ابحث في التنزيلات', 'f.selectAll': 'تحديد الكل', 'f.moveSel': 'نقل ({n})', 'f.deleteSel': 'حذف ({n})', 'f.moved': 'تم النقل',
+    'f.deleteQ': 'حذف {n} عنصر؟', 'f.deleteNote': 'ستُحذف من هذا الجهاز.', 'f.emptyT': 'لا شيء هنا بعد', 'f.empty': 'ستظهر هنا التنزيلات التي تحفظها في هذا المجلد.',
+    'f.rename': 'إعادة تسمية', 'f.delete': 'حذف المجلد', 'f.deleteFolderQ': 'حذف «{name}»؟', 'f.deleteFolderNote': 'تبقى الفيديوهات في «كل الفيديوهات».',
+    'f.libEmptyT': 'مكتبتك فارغة', 'f.libEmpty': 'كل فيديو تنزّله يُحفظ هنا لتشاهده دون Wi-Fi.', 'f.none': 'بلا مجلد', 'f.moveTo': 'نقل إلى مجلد',
+    'm.play': 'تشغيل', 'm.share': 'مشاركة', 'm.gallery': 'حفظ في المعرض', 'm.saveFiles': 'حفظ في الصور / الملفات', 'm.openWith': 'فتح بتطبيق آخر',
+    'm.move': 'نقل إلى مجلد', 'm.rename': 'إعادة تسمية', 'm.source': 'فتح الصفحة الأصلية', 'm.delete': 'حذف', 'm.deleteQ': 'حذف هذا التنزيل؟',
+
+    'an.title': 'تنزيل', 'an.loading': 'جارٍ قراءة رابط {site}…', 'an.failed': 'تعذّرت قراءة هذا الرابط',
+    'an.failedTip': 'تأكد أن المنشور عام وأن الرابط كامل. لا يمكن حفظ الفيديوهات الخاصة أو المقيّدة بالعمر أو المحذوفة.',
+    'an.choose': 'اختر الجودة', 'an.saveIn': 'الحفظ في', 'an.item': 'فيديو {n}', 'an.all': 'تنزيل الكل ({n}) بأفضل جودة',
+    'an.added': 'أُضيف إلى التنزيلات · {q}', 'an.addedN': 'أُضيف {n} فيديو إلى التنزيلات',
+    'an.note': 'الأحجام تقريبية. تظهر كل الدقّات التي يوفرها الموقع. ملفات 4K/VP9 تعمل في مشغّل VidVault على أندرويد؛ على الآيفون اختر 1080p أو أقل إذا لم يعمل الملف.',
+    'q.original': 'الأصلي', 'q.bestAvailable': 'أفضل جودة متاحة', 'q.audio': 'صوت فقط', 'q.audioSub': 'الصوت الأصلي', 'q.mp3Sub': 'يعمل في كل مكان',
+    'ns.title': 'اربط خادم التنزيل', 'ns.body': 'لا تسمح المتصفحات بجلب الفيديو من هذه المواقع مباشرةً، لذلك يستخدم تطبيق الويب خادم VidVault الخاص بك والمجاني. إعداده يستغرق نحو 3 دقائق ومرة واحدة فقط. تطبيق أندرويد لا يحتاج إلى ذلك.',
+    'ns.connect': 'إدخال عنوان الخادم', 'ns.guide': 'دليل الإعداد خطوة بخطوة', 'ns.android': 'تنزيل تطبيق أندرويد بدلًا من ذلك',
+
+    'set.support': 'التواصل مع الدعم', 'set.shareApp': 'مشاركة VidVault', 'set.checkUpdate': 'التحقق من التحديثات', 'set.updated': 'جارٍ التحديث…',
+    'set.shareText': 'VidVault — احفظ الفيديوهات من يوتيوب وإنستغرام وفيسبوك وX وتيك توك وثريدز لمشاهدتها دون إنترنت.',
+    'set.notify': 'تفعيل الإشعارات', 'set.notifyNote': 'استلم إشعارًا عند انتهاء التنزيل (بلا إزعاج).',
+    'set.pin': 'قفل برمز الدخول',
+    'set.vpn': 'VPN / بروكسي', 'set.vpnNote': 'مرّر التنزيلات عبر VPN أو خادم بروكسي خاص بك (SOCKS5 أو HTTP). مفيد إذا كان الموقع محجوبًا على شبكتك.',
+    'set.vpnPrompt': 'أدخل عنوان البروكسي، مثل socks5://host:1080 أو http://user:pass@host:8080',
+    'set.browser': 'المتصفح', 'set.search': 'محرك البحث', 'set.ua': 'وكيل المستخدم', 'set.adblock': 'حظر الإعلانات', 'set.clear': 'مسح السجل وبيانات المواقع',
+    'set.clearNote': 'سيُمسح سجل التصفح وملفات تعريف الارتباط والصفحات المخزنة. تبقى تنزيلاتك كما هي.', 'set.clearBtn': 'مسح', 'set.cleared': 'تم مسح السجل وبيانات المواقع',
+    'set.wifi': 'المشاركة عبر Wi-Fi', 'set.wifiNote': 'افتح العنوان أعلاه في متصفح على حاسوب متصل بنفس الشبكة لعرض تنزيلاتك ونسخها.', 'set.wifiWeb': 'المشاركة عبر Wi-Fi متاحة في تطبيق أندرويد.',
+    'set.downloads': 'التنزيلات', 'set.engine': 'محرك التنزيل', 'set.server': 'خادم التنزيل', 'set.serverOpt': 'اختياري في أندرويد', 'set.notSet': 'غير محدد',
+    'set.quality': 'الجودة الافتراضية', 'set.h264': 'تفضيل الفيديو المتوافق (H.264)', 'set.h264Note': 'يعمل على كل الهواتف والتلفزيونات. أوقفه للحصول على VP9/AV1 عندما يكون أوضح.',
+    'set.wifiOnly': 'التنزيل عبر Wi-Fi فقط', 'set.autoGallery': 'الحفظ في المعرض أيضًا', 'set.updateEngine': 'تحديث محرك التنزيل', 'set.updateEngineNote': 'احصل على آخر إصلاحات المواقع (yt-dlp).',
+    'set.storage': 'المساحة المستخدمة', 'set.wipe': 'حذف كل التنزيلات', 'set.wipeNote': 'ستُحذف كل التنزيلات ({n}) من هذا الجهاز.', 'set.wiped': 'تم حذف كل التنزيلات',
+    'set.appearance': 'المظهر', 'set.dark': 'الوضع الداكن', 'set.color': 'اللون', 'set.lang': 'اللغة',
+    'set.about': 'حول التطبيق', 'set.sites': 'المواقع المدعومة', 'set.sitesMore': 'وأكثر من 1000 موقع آخر', 'set.getApk': 'تنزيل تطبيق أندرويد (APK)', 'set.webApp': 'فتح تطبيق الويب', 'set.source': 'الشيفرة المصدرية على GitHub',
+    'set.legal': 'نزّل فقط الفيديوهات التي تملكها أو لديك إذن بحفظها، واحترم شروط كل موقع. VidVault غير تابع لأي من هذه المواقع.',
+    'theme.dark': 'تشغيل', 'theme.light': 'إيقاف', 'theme.system': 'النظام',
+    'ua.default': 'افتراضي', 'ua.desktop': 'حاسوب', 'ua.iphone': 'آيفون', 'ua.android': 'أندرويد',
+    'engine.device': 'على هذا الهاتف', 'engine.server': 'خادمي',
+    'qd.ask': 'السؤال كل مرة', 'qd.best': 'أفضل جودة متاحة', 'qd.2160': 'حتى 4K', 'qd.1080': 'حتى 1080p', 'qd.720': 'حتى 720p', 'qd.480': 'حتى 480p', 'qd.360': 'حتى 360p', 'qd.audio': 'صوت فقط',
+    'eng.updating': 'جارٍ تحديث محرك التنزيل…', 'eng.latest': 'الإصدار محدَّث بالفعل {v}', 'eng.updated': 'تم التحديث إلى {v}', 'eng.failed': 'فشل التحديث:',
+
+    'srv.intro': 'يرسل تطبيق الويب الروابط إلى خادم VidVault الخاص بك، فيجلب الفيديو بالجودة التي تختارها، ثم يُحفظ الملف على هذا الجهاز للمشاهدة دون إنترنت.',
+    'srv.introApp': 'تطبيق أندرويد ينزّل على الهاتف نفسه. الخادم مطلوب فقط إذا غيّرت محرك التنزيل إلى «خادمي».',
+    'srv.address': 'عنوان الخادم', 'srv.key': 'مفتاح الوصول', 'srv.keyPh': 'قيمة ACCESS_KEY التي وضعتها على الخادم', 'srv.save': 'حفظ واختبار',
+    'srv.testing': 'جارٍ الاتصال… (قد يستغرق الخادم المجاني النائم دقيقة ليستيقظ)', 'srv.ok': 'متصل', 'srv.sleepy': 'الخوادم المجانية تنام عند الخمول — انتظر دقيقة وحاول مجددًا.',
+    'srv.howT': 'إعداد خادم مجاني',
+    'srv.how': '١. اضغط «النشر على Render» أدناه وسجّل الدخول (مجانًا).<br>٢. اكتب أي كلمة مرور في ACCESS_KEY واضغط Deploy.<br>٣. عندما يعمل، انسخ عنوانه (…onrender.com) والصقه أعلاه مع كلمة المرور.',
+    'srv.deploy': 'النشر على Render (مجانًا)',
+
+    'pin.on': 'تفعيل رمز الدخول', 'pin.off': 'إيقاف رمز الدخول', 'pin.change': 'تغيير رمز الدخول', 'pin.note': 'اطلب رمزًا من 4 أرقام عند فتح VidVault. تبقى مكتبتك مخفية حتى يُدخل الرمز.',
+    'pin.bio': 'فتح القفل بالبصمة / الوجه', 'pin.new': 'أدخل رمزًا جديدًا', 'pin.confirm': 'أدخله مرة أخرى', 'pin.current': 'أدخل رمزك', 'pin.enter': 'أدخل رمز الدخول',
+    'pin.mismatch': 'الرمزان غير متطابقين', 'pin.set': 'تم تعيين الرمز', 'pin.wrong': 'رمز خاطئ', 'pin.bioPrompt': 'فتح VidVault',
+
+    'err.noLink': 'الصق رابط الفيديو أولًا', 'err.noLinkClipboard': 'لا يوجد رابط في الحافظة — انسخ رابط الفيديو أولًا',
+    'err.serverUnreachable': 'تعذّر الوصول إلى خادمك. تحقق من العنوان ومن أنه يعمل.', 'err.badKey': 'رفض الخادم مفتاح الوصول',
+    'err.badProxy': 'يجب أن يبدأ البروكسي بـ socks5:// أو http:// أو https://', 'err.cantPlay': 'لا يمكن تشغيل هذا الملف هنا — جرّب المشاركة أو الفتح بتطبيق آخر',
+    'err.missingFile': 'الملف غير موجود على هذا الجهاز', 'err.noWifi': 'اتصل بشبكة Wi-Fi أولًا', 'err.notifDenied': 'الإشعارات محظورة في إعدادات النظام',
+    'err.notifUnsupported': 'على الآيفون، أضف VidVault إلى الشاشة الرئيسية أولًا لتصلك الإشعارات',
+  };
+
+  const dict = { en, ar };
+  window.VV_DICT = dict;
+  window.VV_T = function (lang, key, vars) {
+    let s = (dict[lang] && dict[lang][key]) || en[key] || key;
+    if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+    return s;
+  };
+})();

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+    <item name="android:statusBarColor">#000000</item>
+    <item name="android:navigationBarColor">#000000</item>
+    <item name="android:windowBackground">@drawable/splash</item>
+    <item name="android:colorAccent">#0a84ff</item>
+  </style>
+  <style name="BrowserTheme" parent="android:Theme.Material.NoActionBar">
+    <item name="android:statusBarColor">#161618</item>
+    <item name="android:navigationBarColor">#161618</item>
+    <item name="android:windowBackground">@android:color/black</item>
+    <item name="android:colorAccent">#0a84ff</item>
+  </style>
+</resources>

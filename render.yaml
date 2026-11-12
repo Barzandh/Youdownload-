@@ -1,0 +1,14 @@
+# One-click deploy of the VidVault download server on Render (free plan).
+# https://render.com/deploy?repo=https://github.com/Barzandh/Youdownload-
+services:
+  - type: web
+    name: vidvault
+    runtime: docker
+    plan: free
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/ping
+    autoDeploy: true
+    envVars:
+      - key: ACCESS_KEY
+        sync: false
