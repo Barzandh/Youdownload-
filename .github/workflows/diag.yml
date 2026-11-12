@@ -15,11 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q -U "yt-dlp[default]"
+      - run: python3 .github/diag/diag2.py 2>&1 | tee diag2.txt
       - run: python3 .github/diag/diag.py 2>&1 | tee diag.txt
       - name: Save results
         if: always()
         run: |
           git config --global user.name "VidVault CI"; git config --global user.email "ci@users.noreply.github.com"
-          mkdir /tmp/d && cp diag.json diag.txt /tmp/d/ 2>/dev/null || true
+          mkdir /tmp/d && cp diag.json diag.txt diag2.json diag2.txt /tmp/d/ 2>/dev/null || true
           cd /tmp/d && git init -q -b diag && git add -A && git commit -q -m "diag $(date -u +%FT%TZ)"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" diag
