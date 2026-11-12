@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 .github/diag/health.py
+      - run: python3 .github/diag/proxies.py || true
       - name: Publish live.json
         run: |
           git config --global user.name "VidVault CI"; git config --global user.email "ci@users.noreply.github.com"
