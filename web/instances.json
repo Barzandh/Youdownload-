@@ -1,0 +1,9 @@
+{
+  "updated": "2026-11-12",
+  "note": "Free public cobalt servers VidVault tries in order. Edit this file to add or remove servers; the app picks up changes without an update.",
+  "instances": [
+    "https://api.cobalt.liubquanti.click/",
+    "https://cobaltapi.cjs.nz/",
+    "https://rue-cobalt.xenon.zone/"
+  ]
+}

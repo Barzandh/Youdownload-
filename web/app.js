@@ -93,12 +93,13 @@ const DEFAULTS = {
   search: 'google', ua: 'default', adblock: true,
   notify: false, pinHash: '', bio: false,
   proxyOn: false, proxy: '',
-  engine: IS_ANDROID_APP ? 'device' : 'server',
+  engine: IS_ANDROID_APP ? 'device' : 'public', cobalt: '',
   server: '', serverKey: '',
   quality: 'ask', h264: true, wifiOnly: false, autoGallery: false,
   wifiShare: false,
 };
 let S = Object.assign({}, DEFAULTS, safeJSON(localStorage.getItem('vv.settings'), {}));
+if (!S.v2) { if (!IS_ANDROID_APP && !(S.engine === 'server' && S.server)) S.engine = 'public'; S.v2 = true; localStorage.setItem('vv.settings', JSON.stringify(S)); }
 function safeJSON(s, d) { try { return s ? JSON.parse(s) : d; } catch (e) { return d; } }
 function save(patch) {
   if (patch) Object.assign(S, patch);
@@ -276,12 +277,91 @@ async function serverFetch(path, opts = {}) {
   if (!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
   return data;
 }
-function useServer() { return !IS_ANDROID_APP || S.engine === 'server'; }
+/* Which engine downloads:
+ *  device – Android app, yt-dlp on the phone
+ *  server – your own VidVault server (optional)
+ *  public – free public download servers (cobalt), no setup — the web app's default */
+function engineMode() {
+  if (IS_ANDROID_APP) return S.engine === 'server' && serverBase() ? 'server' : S.engine === 'public' ? 'public' : 'device';
+  return S.engine === 'server' && serverBase() ? 'server' : 'public';
+}
+function useServer() { return engineMode() === 'server'; }
 const proxyArg = () => (S.proxyOn && S.proxy ? S.proxy.trim() : '');
+
+/* ---------- free public download servers (cobalt API) ---------- */
+const DEFAULT_INSTANCES = ['https://api.cobalt.liubquanti.click/', 'https://cobaltapi.cjs.nz/', 'https://rue-cobalt.xenon.zone/'];
+const Public = {
+  list: null,
+  async instances() {
+    if (!this.list) {
+      let remote = [];
+      try {
+        const r = await fetch('instances.json?t=' + Math.floor(Date.now() / 3600000), { cache: 'no-store' });
+        if (r.ok) remote = (await r.json()).instances || [];
+      } catch (e) {}
+      this.list = [...new Set([].concat(S.cobalt ? [S.cobalt] : [], remote, DEFAULT_INSTANCES).map((u) => u.replace(/\/*$/, '/')))];
+    }
+    // the server that worked last for this kind of site goes first
+    return this.list;
+  },
+  ordered(platform) {
+    const best = safeJSON(localStorage.getItem('vv.pub.best'), {})[platform];
+    const l = this.list.slice();
+    if (best && l.includes(best)) { l.splice(l.indexOf(best), 1); l.unshift(best); }
+    return l;
+  },
+  remember(platform, inst) { const m = safeJSON(localStorage.getItem('vv.pub.best'), {}); m[platform] = inst; localStorage.setItem('vv.pub.best', JSON.stringify(m)); },
+  body(job, minimal) {
+    const yt = job.platform === 'youtube';
+    const q = String(job.pq || 'max');
+    const b = { url: job.url, videoQuality: q, downloadMode: job.kind === 'video' ? 'auto' : 'audio', audioFormat: job.kind === 'mp3' ? 'mp3' : 'best' };
+    if (yt) b.youtubeVideoCodec = (q === 'max' ? !S.h264 : +q > 1080) ? 'vp9' : 'h264';
+    if (!minimal) Object.assign(b, { filenameStyle: 'pretty', alwaysProxy: true, localProcessing: 'disabled', audioBitrate: '320' });
+    return b;
+  },
+  async request(inst, job) {
+    for (const minimal of [false, true]) {
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 30000);
+      let r;
+      try { r = await fetch(inst, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(this.body(job, minimal)), signal: ctl.signal }); }
+      finally { clearTimeout(tm); }
+      const d = await r.json().catch(() => ({ status: 'error', error: { code: 'http.' + r.status } }));
+      if (d.status === 'error' && /invalid_body|schema/i.test((d.error && d.error.code) || '') && !minimal) continue;
+      return d;
+    }
+  },
+  fatal(code) { return /content\.(video\.)?(unavailable|private|age|region)|post\.private|link\.(invalid|unsupported)|content\.too_long|youtube\.(no_matching_format)?$/i.test(code || '') && !/login|decipher|fetch|rate|auth/i.test(code || ''); },
+  errText(code) {
+    code = code || '';
+    if (/private/.test(code)) return t('pub.private');
+    if (/unavailable|empty/.test(code)) return t('pub.unavailable');
+    if (/too_long/.test(code)) return t('pub.tooLong');
+    if (/age/.test(code)) return t('pub.age');
+    if (/link\.(invalid|unsupported)|service\.unsupported/.test(code)) return t('pub.unsupported');
+    if (/rate/.test(code)) return t('pub.busy');
+    return code.replace(/^error\.api\./, '');
+  },
+};
+async function publicInfo(url) {
+  const p = platformOf(url);
+  const info = { webpage_url: url, title: '', thumbnail: '', uploader: '', public: true, platform: p.id, formats: [] };
+  const yt = url.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/live\/|\/embed\/)([\w-]{11})/);
+  if (yt) info.thumbnail = 'https://i.ytimg.com/vi/' + yt[1] + '/hqdefault.jpg';
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 5000);
+    const r = await fetch('https://noembed.com/embed?url=' + encodeURIComponent(url), { signal: ctl.signal });
+    const d = await r.json();
+    if (d && !d.error) { info.title = d.title || ''; info.uploader = d.author_name || ''; if (!info.thumbnail) info.thumbnail = d.thumbnail_url || ''; }
+  } catch (e) {}
+  if (!info.title) { info.title = p.name + ' ' + t('pub.video'); info.autoTitle = true; }
+  return info;
+}
 
 const Engine = {
   async info(url) {
-    if (useServer()) return serverFetch('/api/info?url=' + encodeURIComponent(url) + (proxyArg() ? '&proxy=' + encodeURIComponent(proxyArg()) : ''));
+    const mode = engineMode();
+    if (mode === 'server') return serverFetch('/api/info?url=' + encodeURIComponent(url) + (proxyArg() ? '&proxy=' + encodeURIComponent(proxyArg()) : ''));
+    if (mode === 'public') return publicInfo(url);
     return nativeCall('info', url, JSON.stringify({ proxy: proxyArg() }));
   },
 };
@@ -301,13 +381,12 @@ const Jobs = {
   },
   active() { return this.list.filter((j) => !['done', 'error', 'canceled'].includes(j.status)); },
   async start(spec) {
-    const job = Object.assign({ id: uid(), status: 'queued', progress: 0, created: Date.now() }, spec);
+    const job = Object.assign({ id: uid(), status: 'queued', progress: 0, created: Date.now(), mode: engineMode() }, spec);
     this.list.unshift(job); updateBadge();
-    if (!useServer()) {
-      N.download(JSON.stringify(Object.assign({}, job, { proxy: proxyArg() })));
-    } else {
-      this.runServer(job).catch((e) => this.update({ id: job.id, status: 'error', error: e.message || String(e) }));
-    }
+    const fail = (e) => { if (!job.canceled) this.update({ id: job.id, status: 'error', error: e.message || String(e) }); };
+    if (job.mode === 'device') N.download(JSON.stringify(Object.assign({}, job, { proxy: proxyArg() })));
+    else if (job.mode === 'public') this.runPublic(job).catch(fail);
+    else this.runServer(job).catch(fail);
     return job;
   },
   cancel(id) {
@@ -319,11 +398,99 @@ const Jobs = {
     this.update({ id, status: 'canceled' });
   },
   clearFinished() { this.list = this.list.filter((j) => !['done', 'error', 'canceled'].includes(j.status)); },
+
+  /* free public servers: ask each in turn until one hands back the video, then save it straight onto this device */
+  async runPublic(job) {
+    await Public.instances();
+    const list = Public.ordered(job.platform);
+    let lastErr = null;
+    for (const inst of list) {
+      if (job.canceled) return;
+      this.update({ id: job.id, status: 'downloading', progress: 0, note: t('pub.asking', { n: list.indexOf(inst) + 1, total: list.length }) });
+      let d;
+      try { d = await Public.request(inst, job); }
+      catch (e) { lastErr = new Error(t('pub.unreachable')); continue; }
+      if (!d || d.status === 'error') {
+        const code = d && d.error && d.error.code;
+        lastErr = new Error(Public.errText(code));
+        if (Public.fatal(code)) break;
+        continue;
+      }
+      let url = d.url, filename = d.filename || '';
+      if (d.status === 'picker') {
+        const vids = (d.picker || []).filter((x) => x.type !== 'photo');
+        const pickList = vids.length ? vids : (d.picker || []);
+        const one = pickList[Math.max(0, Math.min(pickList.length - 1, (job.item || 1) - 1))];
+        if (!one) { lastErr = new Error(t('pub.unavailable')); continue; }
+        url = one.url; filename = '';
+        if (!job.item && pickList.length > 1 && !job.pickerExpanded) {
+          // a post with several videos: queue the others as their own downloads
+          job.pickerExpanded = true;
+          const spec = {}; ['url', 'format', 'kind', 'pq', 'thumbnail', 'duration', 'platform', 'folder', 'uploader', 'quality'].forEach((k) => spec[k] = job[k]);
+          pickList.slice(1).forEach((x, i) => Jobs.start(Object.assign({}, spec, { item: i + 2, pickerExpanded: true, title: job.title + ' (' + (i + 2) + ')' })));
+          job.title += ' (1)';
+        }
+      }
+      if (d.status === 'local-processing' || !url) { lastErr = new Error(t('pub.unavailable')); continue; }
+      if (job.autoTitle && filename) {
+        const nice = filename.replace(/\.\w{2,4}$/, '').replace(/\s*\((\d{3,4}p|\d+k?bps|h264|vp9|av1|opus|mp3|best|audio)[^)]*\)\s*/gi, ' ').replace(/_/g, ' ').trim();
+        if (nice) { job.title = nice + (job.pickerExpanded && job.item ? ' (' + job.item + ')' : ''); this.update({ id: job.id, title: job.title }); }
+      }
+      try {
+        await this.saveFromUrl(job, url, { filename });
+        Public.remember(job.platform, inst);
+        return;
+      } catch (e) {
+        if (job.canceled) return;
+        lastErr = e;
+        if (e.cors) { this.update({ id: job.id, status: 'error', error: t('pub.openInstead'), openUrl: url }); return; }
+      }
+    }
+    throw lastErr || new Error(t('pub.allFailed'));
+  },
+
+  /* copy a finished file into the app's offline storage (IndexedDB), with progress */
+  async saveFromUrl(job, url, meta = {}) {
+    job.abort = new AbortController();
+    let r;
+    try { r = await fetch(url, { signal: job.abort.signal }); }
+    catch (e) { if (job.canceled) throw e; const er = new Error(t('pub.blocked')); er.cors = true; throw er; }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const total = +r.headers.get('Content-Length') || +r.headers.get('Estimated-Content-Length') || meta.size || 0;
+    let type = (r.headers.get('Content-Type') || '').split(';')[0];
+    const reader = r.body.getReader(); const parts = []; let got = 0; const t0 = Date.now(); let lastUi = 0;
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      parts.push(value); got += value.length;
+      const now = Date.now();
+      if (now - lastUi > 400) {
+        lastUi = now; const speed = got / Math.max(0.1, (now - t0) / 1000);
+        const base = meta.from || 0;
+        this.update({ id: job.id, status: 'saving', note: '', got, progress: total ? base + (got / total) * (100 - base) : 0, speed, eta: total ? (total - got) / speed : 0 });
+      }
+    }
+    if (!got) throw new Error(t('pub.unavailable'));
+    let ext = (meta.filename.match(/\.(\w{2,4})$/) || [])[1] || meta.ext || '';
+    if (!ext) ext = /webm/.test(type) ? 'webm' : /mpeg/.test(type) ? 'mp3' : /audio/.test(type) ? 'm4a' : job.kind === 'mp3' ? 'mp3' : job.kind === 'm4a' ? 'm4a' : 'mp4';
+    if (!type || type === 'application/octet-stream') type = { mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', m4a: 'audio/mp4', opus: 'audio/ogg', ogg: 'audio/ogg', mkv: 'video/x-matroska' }[ext] || 'video/mp4';
+    const blob = new Blob(parts, { type });
+    let thumbBlob = null;
+    const thumbUrl = meta.thumbUrl || job.thumbnail;
+    if (thumbUrl) { try { const tr = await fetch(thumbUrl); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {} }
+    const kind = /^audio/.test(type) ? (ext === 'mp3' ? 'mp3' : 'm4a') : 'video';
+    const item = {
+      id: job.id, title: job.title || 'Video', platform: job.platform, folder: job.folder || '', kind, quality: job.quality,
+      ext, size: blob.size, duration: job.duration || 0, created: Date.now(), source: job.url, uploader: job.uploader || '', mime: type,
+    };
+    await Store.addWeb(item, blob, thumbBlob);
+    if (thumbBlob) Store.thumbCache.set(item.id, URL.createObjectURL(thumbBlob));
+    this.update({ id: job.id, status: 'done', progress: 100, item });
+  },
+
   async runServer(job) {
     const created = await serverFetch('/api/jobs', { method: 'POST', body: JSON.stringify({ url: job.url, format: job.format, kind: job.kind, item: job.item || null, proxy: proxyArg() }) });
     job.serverJob = created.id;
     this.update({ id: job.id, status: 'downloading', phase: 'server' });
-    // 1) the server downloads + merges
     let st;
     for (;;) {
       if (job.canceled) return;
@@ -336,39 +503,12 @@ const Jobs = {
     const fileUrl = serverBase() + '/api/jobs/' + created.id + '/file' + (S.serverKey ? '?key=' + encodeURIComponent(S.serverKey) : '');
     const thumbUrl = job.thumbnail ? serverBase() + '/api/thumb?url=' + encodeURIComponent(job.thumbnail) + (S.serverKey ? '&key=' + encodeURIComponent(S.serverKey) : '') : '';
     if (N) {
-      // Android app using a server: the phone fetches the finished file natively (no size limit)
       N.downloadHttp(JSON.stringify(Object.assign({}, job, { fileUrl, thumbUrl, ext: st.ext, size: st.size, startProgress: 70 })));
       setTimeout(() => serverFetch('/api/jobs/' + created.id, { method: 'DELETE' }).catch(() => {}), 10 * 60 * 1000);
       return;
     }
-    // 2) the browser copies the finished file into its offline storage
-    job.abort = new AbortController();
-    const r = await fetch(fileUrl, { signal: job.abort.signal });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const total = +r.headers.get('Content-Length') || st.size || 0;
-    const type = r.headers.get('Content-Type') || (job.kind === 'video' ? 'video/mp4' : 'audio/mp4');
-    const reader = r.body.getReader(); const parts = []; let got = 0, t0 = Date.now(), lastUi = 0;
-    for (;;) {
-      const { done, value } = await reader.read(); if (done) break;
-      parts.push(value); got += value.length;
-      const now = Date.now();
-      if (now - lastUi > 400) {
-        lastUi = now; const speed = got / ((now - t0) / 1000);
-        this.update({ id: job.id, status: 'saving', phase: 'device', progress: 60 + (total ? (got / total) * 40 : 20), speed, eta: total ? (total - got) / speed : 0 });
-      }
-    }
-    const blob = new Blob(parts, { type });
-    let thumbBlob = null;
-    if (thumbUrl) { try { const tr = await fetch(thumbUrl); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {} }
-    const item = {
-      id: job.id, title: job.title || 'Video', platform: job.platform, folder: job.folder || '', kind: job.kind, quality: job.quality,
-      ext: st.ext || (job.kind === 'mp3' ? 'mp3' : job.kind === 'm4a' ? 'm4a' : 'mp4'), size: blob.size, duration: job.duration || 0,
-      created: Date.now(), source: job.url, uploader: job.uploader || '', mime: type,
-    };
-    await Store.addWeb(item, blob, thumbBlob);
-    if (thumbBlob) Store.thumbCache.set(item.id, URL.createObjectURL(thumbBlob));
+    await this.saveFromUrl(job, fileUrl, { filename: st.filename || '', ext: st.ext, size: st.size, thumbUrl, from: 60 });
     serverFetch('/api/jobs/' + created.id, { method: 'DELETE' }).catch(() => {});
-    this.update({ id: job.id, status: 'done', progress: 100, item });
   },
 };
 function updateBadge() {
@@ -401,7 +541,23 @@ const isCompat = (f) => !f.vcodec || /^(avc|h264)/i.test(f.vcodec);
 const hasAudio = (f) => f.acodec && f.acodec !== 'none';
 const audioUnknown = (f) => f.acodec == null || f.acodec === '';
 function fSize(f, dur) { return f.filesize || f.filesize_approx || (f.tbr && dur ? f.tbr * 125 * dur : 0); }
+function publicChoices(info) {
+  const out = [];
+  if (info.platform === 'youtube') {
+    [[2160, '4K'], [1440, '2K'], [1080, 'HD'], [720, 'HD'], [480, 'SD'], [360, 'SD'], [240, 'SD'], [144, 'SD']].forEach(([h, tag]) => out.push({
+      key: h + 'p', label: h + 'p', tag, height: h, kind: 'video', pq: String(h), format: '',
+      sub: h > 1080 ? t('pub.vp9') : 'MP4 · H.264' + (h === 1080 ? ' · ' + t('pub.upTo') : ''),
+    }));
+  } else {
+    out.push({ key: 'max', label: t('pub.best'), tag: 'HD', height: 9999, kind: 'video', pq: 'max', format: '', sub: t('pub.bestSub') });
+    [1080, 720, 480].forEach((h) => out.push({ key: h + 'p', label: h + 'p', tag: h >= 720 ? 'HD' : 'SD', height: h, kind: 'video', pq: String(h), format: '', sub: 'MP4 · ' + t('pub.upTo') }));
+  }
+  out.push({ key: 'm4a', label: t('q.audio') + ' · ' + t('pub.original'), tag: 'AUD', kind: 'm4a', pq: 'max', format: '', sub: t('q.audioSub') });
+  out.push({ key: 'mp3', label: t('q.audio') + ' · MP3', tag: 'MP3', kind: 'mp3', pq: 'max', format: '', sub: t('q.mp3Sub') + ' · 320 kbps' });
+  return out;
+}
 function buildChoices(info) {
+  if (info.public) return publicChoices(info);
   const dur = info.duration || 0;
   const fm = (info.formats || []).filter((f) => f && f.protocol !== 'mhtml' && !/storyboard|images/i.test(f.format_note || '') && f.ext !== 'mhtml');
   const audios = fm.filter((f) => f.vcodec === 'none' && hasAudio(f));
@@ -601,13 +757,19 @@ function jobCard(j) {
     done: t('job.done'), error: t('job.error'), canceled: t('job.canceled'), waitingWifi: t('job.waitingWifi'),
   }[j.status] || j.status;
   const bits = [statusText];
-  if (['downloading', 'saving'].includes(j.status)) { if (j.speed) bits.push(fmtBytes(j.speed) + '/s'); if (j.eta) bits.push(fmtEta(j.eta)); bits.push(numLocal(pct) + '%'); }
-  const indet = j.status === 'queued' || j.status === 'processing' || (j.status === 'downloading' && !pct);
+  if (j.note && j.status === 'downloading' && !pct) bits.push(j.note);
+  else if (['downloading', 'saving'].includes(j.status)) {
+    if (j.got && !pct) bits.push(fmtBytes(j.got));
+    if (j.speed) bits.push(fmtBytes(j.speed) + '/s'); if (j.eta) bits.push(fmtEta(j.eta)); if (pct) bits.push(numLocal(pct) + '%');
+  }
+  const indet = j.status === 'queued' || j.status === 'processing' || (['downloading', 'saving'].includes(j.status) && !pct);
   return `<div class="item" data-job="${esc(j.id)}">
     <div class="thumb" style="${j.thumbnail ? `background-image:url('${esc(j.thumbnail)}')` : ''}">${j.thumbnail ? '' : I.play}<span class="pf" style="background:${p.bg}">${p.abbr}</span></div>
     <div class="meta"><b>${esc(j.title || j.url)}</b><small class="${j.status === 'error' ? 'status-err' : ''}">${esc(j.status === 'error' ? (j.error || statusText) : bits.join(' · '))}</small>
       <small>${esc(j.quality || '')}</small>
-      ${['done', 'error', 'canceled'].includes(j.status) ? '' : `<div class="prog ${indet ? 'indet' : ''}"><i style="width:${pct}%"></i></div>`}</div>
+      ${['done', 'error', 'canceled'].includes(j.status) ? '' : `<div class="prog ${indet ? 'indet' : ''}"><i style="width:${pct}%"></i></div>`}
+      ${j.status === 'error' && j.openUrl ? `<a class="btn ghost" style="height:34px;margin-top:8px;font-size:14px" href="${esc(j.openUrl)}" target="_blank" rel="noopener">${I.open}${esc(t('pub.open'))}</a>` : ''}
+      ${j.status === 'done' && !N ? `<button class="btn ghost" data-save="${esc(j.id)}" style="height:34px;margin-top:8px;font-size:14px">${I.photo}${esc(t('m.saveFiles'))}</button>` : ''}</div>
     ${['done', 'error', 'canceled'].includes(j.status)
       ? (j.status === 'done' ? `<button class="more" data-play="${esc(j.id)}" aria-label="play">${I.play}</button>` : `<button class="more" data-retry="${esc(j.id)}" aria-label="retry">${I.refresh}</button>`)
       : `<button class="more" data-cancel="${esc(j.id)}" aria-label="cancel">${I.close}</button>`}
@@ -625,9 +787,10 @@ function bindJobButtons() {
   $$('[data-retry]').forEach((b) => b.onclick = () => {
     const j = Jobs.get(b.dataset.retry); if (!j) return;
     Jobs.list = Jobs.list.filter((x) => x !== j);
-    const spec = {}; ['url', 'item', 'format', 'kind', 'title', 'thumbnail', 'duration', 'platform', 'folder', 'uploader', 'quality'].forEach((k) => spec[k] = j[k]);
+    const spec = {}; ['url', 'item', 'format', 'kind', 'pq', 'title', 'thumbnail', 'duration', 'platform', 'folder', 'uploader', 'quality', 'pickerExpanded'].forEach((k) => spec[k] = j[k]);
     Jobs.start(spec); renderDownloads($('#main'));
   });
+  $$('[data-save]').forEach((b) => b.onclick = () => { const it = Store.get(b.dataset.save); if (it) saveItem(it); });
   $$('[data-play]').forEach((b) => b.onclick = () => { const it = Store.get(b.dataset.play); if (it) play(it); });
 }
 function renderDownloads(m) {
@@ -853,7 +1016,7 @@ function showChoices(sh, url, info, entryIdx) {
     const e = entries ? Object.assign({}, info, entries[eIdx]) : info;
     const ch = eIdx === entryIdx ? c : (buildChoices(e).find((x) => x.key === c.key) || buildChoices(e)[0]);
     Jobs.start({
-      url: info.webpage_url || url, item: entries ? eIdx + 1 : null, format: ch.format, kind: ch.kind,
+      url: info.webpage_url || url, item: entries ? eIdx + 1 : null, format: ch.format, kind: ch.kind, pq: ch.pq, autoTitle: !!info.autoTitle,
       title: (e.title || info.title || p.name) + (entries && entries.length > 1 ? ' (' + (eIdx + 1) + ')' : ''),
       thumbnail: e.thumbnail || info.thumbnail || '', duration: e.duration || 0, platform: p.id, folder,
       uploader: info.uploader || info.channel || '', quality: ch.label,
@@ -928,8 +1091,8 @@ function renderSettings(m) {
 
     <div class="group-title">${esc(t('set.downloads'))}</div>
     <div class="group">
-      ${N ? `<button class="row tap" id="stEngine"><span class="ic">${I.phone}</span><span class="lbl">${esc(t('set.engine'))}</span><span class="val">${esc(t('engine.' + S.engine))}</span>${I.chev}</button>` : ''}
-      <button class="row tap" id="stServer"><span class="ic">${I.server}</span><span class="lbl">${esc(t('set.server'))}${N ? `<small>${esc(t('set.serverOpt'))}</small>` : ''}</span><span class="val">${esc(serverBase() ? new URL(serverBase()).hostname : t('set.notSet'))}</span>${I.chev}</button>
+      <button class="row tap" id="stEngine"><span class="ic">${I.phone}</span><span class="lbl">${esc(t('set.engine'))}</span><span class="val">${esc(t('engine.' + engineMode()))}</span>${I.chev}</button>
+      <button class="row tap" id="stServer"><span class="ic">${I.server}</span><span class="lbl">${esc(t('set.server'))}<small>${esc(t('set.serverOpt'))}</small></span><span class="val">${esc(serverBase() ? new URL(serverBase()).hostname : t('set.notSet'))}</span>${I.chev}</button>
       <button class="row tap" id="stQuality"><span class="ic">${I.hd}</span><span class="lbl">${esc(t('set.quality'))}</span><span class="val">${esc(t('qd.' + S.quality))}</span>${I.chev}</button>
       <div class="row"><span class="ic">${I.play}</span><span class="lbl">${esc(t('set.h264'))}<small>${esc(t('set.h264Note'))}</small></span>${sw('stH264', S.h264)}</div>
       ${N ? `<div class="row"><span class="ic">${I.wifi}</span><span class="lbl">${esc(t('set.wifiOnly'))}</span>${sw('stWifiOnly', S.wifiOnly)}</div>
@@ -985,7 +1148,11 @@ function renderSettings(m) {
     else save({ wifiShare: v });
     render();
   });
-  on('stEngine', async () => { const v = await pick(t('set.engine'), [{ v: 'device', label: t('engine.device') }, { v: 'server', label: t('engine.server') }], S.engine); if (v) { if (v === 'server' && !serverBase()) { State.settingsPage = 'server'; } save({ engine: v }); render(); } });
+  on('stEngine', async () => {
+    const opts = (N ? [{ v: 'device', label: t('engine.device') }] : []).concat([{ v: 'public', label: t('engine.public') }, { v: 'server', label: t('engine.server') }]);
+    const v = await pick(t('set.engine'), opts, engineMode());
+    if (v) { if (v === 'server' && !serverBase()) { State.settingsPage = 'server'; } save({ engine: v }); render(); }
+  });
   on('stServer', () => { State.settingsPage = 'server'; render(); });
   on('stQuality', async () => { const v = await pick(t('set.quality'), ['ask', 'best', '2160', '1080', '720', '480', '360', 'audio'].map((k) => ({ v: k, label: t('qd.' + k) })), S.quality); if (v) { save({ quality: v }); render(); } });
   chg('stH264', (v) => save({ h264: v }));
@@ -1027,6 +1194,9 @@ function renderServerPage(m) {
     <div class="group" style="padding:4px 12px"><input id="srvUrl" class="row" style="border:0;background:none;color:var(--text);font:inherit;outline:none;padding:10px 4px" type="url" inputmode="url" autocapitalize="off" placeholder="https://vidvault-xxxx.onrender.com" value="${esc(S.server)}"></div>
     <div class="group-title">${esc(t('srv.key'))}</div>
     <div class="group" style="padding:4px 12px"><input id="srvKey" class="row" style="border:0;background:none;color:var(--text);font:inherit;outline:none;padding:10px 4px" type="password" autocapitalize="off" placeholder="${esc(t('srv.keyPh'))}" value="${esc(S.serverKey)}"></div>
+    <div class="group-title">${esc(t('srv.cobalt'))}</div>
+    <div class="group" style="padding:4px 12px"><input id="srvCobalt" class="row" style="border:0;background:none;color:var(--text);font:inherit;outline:none;padding:10px 4px" type="url" inputmode="url" autocapitalize="off" placeholder="https://my-cobalt.example.com/" value="${esc(S.cobalt || '')}"></div>
+    <p class="note">${esc(t('srv.cobaltNote'))}</p>
     <button class="btn accent block" id="srvSave" style="margin-top:18px">${esc(t('srv.save'))}</button>
     <div id="srvStatus" class="hint" style="text-align:center"></div>
     <div class="group-title">${esc(t('srv.howT'))}</div>
@@ -1037,8 +1207,10 @@ function renderServerPage(m) {
   $('#spBack').onclick = () => { State.settingsPage = null; render(); };
   $('#srvSave').onclick = async () => {
     let u = $('#srvUrl').value.trim(); if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u;
-    save({ server: u.replace(/\/+$/, ''), serverKey: $('#srvKey').value.trim() });
-    const st = $('#srvStatus'); if (!u) { st.textContent = ''; return; }
+    let c = $('#srvCobalt').value.trim(); if (c && !/^https?:\/\//i.test(c)) c = 'https://' + c;
+    save({ server: u.replace(/\/+$/, ''), serverKey: $('#srvKey').value.trim(), cobalt: c, engine: u ? 'server' : (N ? S.engine : 'public') });
+    Public.list = null;
+    const st = $('#srvStatus'); if (!u) { st.textContent = t('srv.savedPublic'); return; }
     st.textContent = t('srv.testing');
     try { const h = await serverFetch('/api/health'); st.innerHTML = `<span style="color:var(--ok)">✓ ${esc(t('srv.ok'))}</span> · yt-dlp ${esc(h.ytdlp || '')}`; }
     catch (e) { st.innerHTML = `<span style="color:var(--danger)">✗ ${esc(e.message)}</span><br>${esc(t('srv.sleepy'))}`; }
