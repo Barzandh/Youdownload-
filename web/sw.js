@@ -7,7 +7,7 @@
  */
 const VERSION = 'dev';                 // replaced with the commit id when published
 const CACHE = 'vidvault-shell-' + VERSION;
-const SHELL = ['index.html', 'app.css', 'app.js', 'i18n.js', 'manifest.webmanifest', 'instances.json',
+const SHELL = ['index.html', 'app.css', 'app.js', 'i18n.js', 'mux.js', 'manifest.webmanifest', 'instances.json',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/maskable-512.png'];
 const abs = (p) => new URL(p, self.registration.scope).href;
 

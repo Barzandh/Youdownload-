@@ -289,29 +289,47 @@ function engineMode() {
 function useServer() { return engineMode() === 'server'; }
 const proxyArg = () => (S.proxyOn && S.proxy ? S.proxy.trim() : '');
 
-/* ---------- free public download servers (cobalt API) ---------- */
-const DEFAULT_INSTANCES = ['https://api.cobalt.liubquanti.click/', 'https://cobaltapi.cjs.nz/', 'https://rue-cobalt.xenon.zone/'];
+/* ---------- free public download routes (no setup) ----------
+ * YouTube  → Invidious servers (real resolution list; picture + sound joined in the browser by mux.js)
+ * TikTok   → tikwm
+ * all      → cobalt servers
+ * The order comes from live.json, which a GitHub check refreshes every 6 hours. */
+const LIVE_URL = 'https://raw.githubusercontent.com/Barzandh/Youdownload-/diag/live.json';
+const DEFAULT_INSTANCES = ['https://cobaltapi.cjs.nz'];
+const DEFAULT_INVIDIOUS = ['https://yt.chocolatemoo53.com', 'https://invi.susurrando.com'];
+async function fetchJSON(url, ms, opts) {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), ms || 12000);
+  try { const r = await fetch(url, Object.assign({ signal: ctl.signal }, opts || {})); return await r.json(); }
+  finally { clearTimeout(tm); }
+}
+const uniqUrls = (a) => [...new Set(a.filter(Boolean).map((u) => String(u).trim().replace(/\/+$/, '')))];
+const Routes = {
+  cfg: null,
+  async load() {
+    if (this.cfg) return this.cfg;
+    const hour = Math.floor(Date.now() / 3600000);
+    const [local, live] = await Promise.all([
+      fetchJSON('instances.json?t=' + hour, 6000, { cache: 'no-store' }).catch(() => ({})),
+      fetchJSON(LIVE_URL + '?t=' + hour, 6000).catch(() => ({})),
+    ]);
+    this.cfg = {
+      live: live || {},
+      cobalt: uniqUrls([S.cobalt].concat(local.instances || [], DEFAULT_INSTANCES, local.candidates || [])),
+      invidious: uniqUrls([].concat((live && live.invidious) || [], local.invidious || [], DEFAULT_INVIDIOUS)),
+    };
+    return this.cfg;
+  },
+  best(kind, key) { return safeJSON(localStorage.getItem('vv.best.' + kind), {})[key]; },
+  remember(kind, key, val) { const m = safeJSON(localStorage.getItem('vv.best.' + kind), {}); m[key] = val; localStorage.setItem('vv.best.' + kind, JSON.stringify(m)); },
+  order(list, first) { const l = list.slice(); first.filter(Boolean).reverse().forEach((f) => { const u = f.replace(/\/+$/, ''); const i = l.indexOf(u); if (i >= 0) l.splice(i, 1); l.unshift(u); }); return l; },
+  cobaltFor(platform) {
+    const live = ((this.cfg.live.cobalt || {})[platform]) || [];
+    return this.order(this.cfg.cobalt, [S.cobalt, this.best('cobalt', platform)].concat(live));
+  },
+  invidious() { return this.order(this.cfg.invidious, [this.best('inv', 'yt')]); },
+};
+
 const Public = {
-  list: null,
-  async instances() {
-    if (!this.list) {
-      let remote = [];
-      try {
-        const r = await fetch('instances.json?t=' + Math.floor(Date.now() / 3600000), { cache: 'no-store' });
-        if (r.ok) remote = (await r.json()).instances || [];
-      } catch (e) {}
-      this.list = [...new Set([].concat(S.cobalt ? [S.cobalt] : [], remote, DEFAULT_INSTANCES).map((u) => u.replace(/\/*$/, '/')))];
-    }
-    // the server that worked last for this kind of site goes first
-    return this.list;
-  },
-  ordered(platform) {
-    const best = safeJSON(localStorage.getItem('vv.pub.best'), {})[platform];
-    const l = this.list.slice();
-    if (best && l.includes(best)) { l.splice(l.indexOf(best), 1); l.unshift(best); }
-    return l;
-  },
-  remember(platform, inst) { const m = safeJSON(localStorage.getItem('vv.pub.best'), {}); m[platform] = inst; localStorage.setItem('vv.pub.best', JSON.stringify(m)); },
   body(job, minimal) {
     const yt = job.platform === 'youtube';
     const q = String(job.pq || 'max');
@@ -324,36 +342,132 @@ const Public = {
     for (const minimal of [false, true]) {
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 30000);
       let r;
-      try { r = await fetch(inst, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(this.body(job, minimal)), signal: ctl.signal }); }
+      try { r = await fetch(inst + '/', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(this.body(job, minimal)), signal: ctl.signal }); }
       finally { clearTimeout(tm); }
       const d = await r.json().catch(() => ({ status: 'error', error: { code: 'http.' + r.status } }));
       if (d.status === 'error' && /invalid_body|schema/i.test((d.error && d.error.code) || '') && !minimal) continue;
       return d;
     }
   },
-  fatal(code) { return /content\.(video\.)?(unavailable|private|age|region)|post\.private|link\.(invalid|unsupported)|content\.too_long|youtube\.(no_matching_format)?$/i.test(code || '') && !/login|decipher|fetch|rate|auth/i.test(code || ''); },
+  fatal(code) { return /content\.(video\.)?(unavailable|private|age|region)|post\.private|content\.too_long/i.test(code || ''); },
   errText(code) {
     code = code || '';
     if (/private/.test(code)) return t('pub.private');
-    if (/unavailable|empty/.test(code)) return t('pub.unavailable');
+    if (/unavailable/.test(code)) return t('pub.unavailable');
     if (/too_long/.test(code)) return t('pub.tooLong');
     if (/age/.test(code)) return t('pub.age');
     if (/link\.(invalid|unsupported)|service\.unsupported/.test(code)) return t('pub.unsupported');
-    if (/rate/.test(code)) return t('pub.busy');
+    if (/rate|too_many/.test(code)) return t('pub.busy');
+    if (/youtube\.login|fetch\.(fail|empty)|auth|jwt/.test(code)) return t('pub.blockedSite');
     return code.replace(/^error\.api\./, '');
   },
 };
+
+/* YouTube through Invidious */
+function ytId(url) { const m = String(url).match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/live\/|\/embed\/|\/v\/)([\w-]{11})/); return m ? m[1] : ''; }
+async function invidiousVideo(id, prefer) {
+  await Routes.load();
+  const list = Routes.order(Routes.invidious(), [prefer]);
+  for (const base of list) {
+    try {
+      const j = await fetchJSON(base + '/api/v1/videos/' + id + '?local=true', 12000);
+      if (j && !j.error && (j.adaptiveFormats || []).length) { Routes.remember('inv', 'yt', base); return { base, j }; }
+    } catch (e) {}
+  }
+  return null;
+}
+const absUrl = (base, u) => (!u ? '' : /^https?:/.test(u) ? u : u.startsWith('//') ? 'https:' + u : base + u);
+function ytFormatsFrom(base, j) {
+  const ad = j.adaptiveFormats || [];
+  const vids = ad.filter((f) => /^video\/mp4/.test(f.type || '') && /avc1/.test(f.type || '')).map((f) => ({
+    itag: String(f.itag), label: f.qualityLabel || f.resolution || '', height: parseInt(f.resolution || f.qualityLabel, 10) || 0,
+    fps: f.fps || 0, size: +f.clen || 0, bitrate: +f.bitrate || 0, size2: f.size || '', url: absUrl(base, f.url),
+  }));
+  const auds = ad.filter((f) => /^audio\/mp4/.test(f.type || '')).map((f) => ({ itag: String(f.itag), size: +f.clen || 0, bitrate: +f.bitrate || 0, url: absUrl(base, f.url) }))
+    .sort((a, b) => b.bitrate - a.bitrate);
+  const higher = ad.some((f) => /^video\//.test(f.type || '') && (parseInt(f.resolution || f.qualityLabel, 10) || 0) > Math.max(0, ...vids.map((v) => v.height)));
+  const prog = (j.formatStreams || []).filter((f) => /mp4/.test(f.type || '')).map((f) => ({ itag: String(f.itag), label: f.qualityLabel || f.resolution, height: parseInt(f.resolution, 10) || 0, size: +f.clen || 0, url: absUrl(base, f.url) }));
+  return { vids, auds, prog, higher };
+}
+function ytChoices(info) {
+  const F = info.ytFormats; const out = [];
+  const a = F.auds[0];
+  const byLabel = new Map();
+  for (const v of F.vids) { const c = byLabel.get(v.label); if (!c || v.bitrate > c.bitrate) byLabel.set(v.label, v); }
+  [...byLabel.values()].sort((x, y) => y.height - x.height || y.fps - x.fps).forEach((v) => {
+    const tag = v.height >= 2160 ? '4K' : v.height >= 1440 ? '2K' : v.height >= 720 ? 'HD' : 'SD';
+    out.push({ key: v.label, label: v.label, tag, height: v.height, kind: 'video', ytV: v.itag, ytA: a && a.itag, size: v.size + (a ? a.size : 0), sub: ['MP4 · H.264', v.size2].filter(Boolean).join(' · ') });
+  });
+  F.prog.forEach((p) => { if (!out.some((o) => o.height === p.height)) out.push({ key: 'p' + p.itag, label: p.label, tag: 'SD', height: p.height, kind: 'video', ytP: p.itag, size: p.size, sub: 'MP4' }); });
+  if (a) out.push({ key: 'm4a', label: t('q.audio') + ' · M4A', tag: 'AUD', kind: 'm4a', ytA: a.itag, size: a.size, sub: t('q.audioSub') + ' · ' + Math.round(a.bitrate / 1000) + ' kbps' });
+  return out;
+}
+/* download bytes in pieces (YouTube slows down big single requests) */
+async function getBytes(url, total, onBytes, signal) {
+  if (!total) {
+    const r = await fetch(url, { signal }); if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rd = r.body.getReader(); const parts = []; let n = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); n += value.length; onBytes(value.length); }
+    const out = new Uint8Array(n); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out;
+  }
+  const CH = 4 * 1024 * 1024; const out = new Uint8Array(total);
+  for (let s = 0; s < total;) {
+    const e = Math.min(total, s + CH) - 1;
+    let pos = s, tries = 0;
+    for (;;) {
+      try {
+        const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'range=' + pos + '-' + e, { signal });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const rd = r.body.getReader();
+        for (;;) {
+          const { done, value } = await rd.read(); if (done) break;
+          const n = Math.min(value.length, total - pos); out.set(value.subarray(0, n), pos); pos += n; onBytes(n);
+          if (pos >= total) break;
+        }
+        break;
+      } catch (err) {
+        if (signal && signal.aborted) throw err;
+        if (++tries >= 4) throw err;
+        await sleep(1000 * tries);
+      }
+    }
+    if (pos >= total) break;
+    if (pos <= s) throw new Error(t('pub.unavailable'));
+    s = pos;
+  }
+  return out;
+}
+
+/* TikTok through tikwm */
+async function tikwm(url) {
+  const j = await fetchJSON('https://www.tikwm.com/api/?hd=1&url=' + encodeURIComponent(url), 12000);
+  if (!j || j.code !== 0 || !j.data) throw new Error((j && j.msg) || 'tikwm');
+  const d = j.data; const abs = (u) => (!u ? '' : /^https?:/.test(u) ? u : 'https://www.tikwm.com' + u);
+  return { title: d.title, cover: abs(d.cover || d.origin_cover), duration: d.duration, author: d.author && (d.author.nickname || d.author.unique_id), play: abs(d.play), hdplay: abs(d.hdplay), music: abs(d.music) };
+}
+
 async function publicInfo(url) {
   const p = platformOf(url);
   const info = { webpage_url: url, title: '', thumbnail: '', uploader: '', public: true, platform: p.id, formats: [] };
-  const yt = url.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/live\/|\/embed\/)([\w-]{11})/);
-  if (yt) info.thumbnail = 'https://i.ytimg.com/vi/' + yt[1] + '/hqdefault.jpg';
-  try {
-    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 5000);
-    const r = await fetch('https://noembed.com/embed?url=' + encodeURIComponent(url), { signal: ctl.signal });
-    const d = await r.json();
-    if (d && !d.error) { info.title = d.title || ''; info.uploader = d.author_name || ''; if (!info.thumbnail) info.thumbnail = d.thumbnail_url || ''; }
-  } catch (e) {}
+  const id = ytId(url);
+  if (p.id === 'youtube' && id) {
+    info.thumbnail = 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
+    const r = await invidiousVideo(id);
+    if (r) {
+      const j = r.j;
+      Object.assign(info, { title: j.title, uploader: j.author, duration: j.lengthSeconds, ytBase: r.base, ytFormats: ytFormatsFrom(r.base, j) });
+      if (!info.ytFormats.vids.length && !info.ytFormats.prog.length) delete info.ytFormats;
+    }
+  }
+  if (p.id === 'tiktok') {
+    try { const d = await tikwm(url); Object.assign(info, { title: d.title, thumbnail: d.cover, duration: d.duration, uploader: d.author, tikwm: true }); } catch (e) {}
+  }
+  if (!info.title) {
+    try {
+      const d = await fetchJSON('https://noembed.com/embed?url=' + encodeURIComponent(url), 5000);
+      if (d && !d.error) { info.title = d.title || ''; info.uploader = info.uploader || d.author_name || ''; if (!info.thumbnail) info.thumbnail = d.thumbnail_url || ''; }
+    } catch (e) {}
+  }
   if (!info.title) { info.title = p.name + ' ' + t('pub.video'); info.autoTitle = true; }
   return info;
 }
@@ -386,7 +500,7 @@ const Jobs = {
     this.list.unshift(job); updateBadge();
     const fail = (e) => { if (!job.canceled) this.update({ id: job.id, status: 'error', error: e.message || String(e) }); };
     if (job.mode === 'device') N.download(JSON.stringify(Object.assign({}, job, { proxy: proxyArg() })));
-    else if (job.mode === 'public') this.runPublic(job).catch(fail);
+    else if (job.mode === 'public') this.runFree(job).catch(fail);
     else this.runServer(job).catch(fail);
     return job;
   },
@@ -400,20 +514,83 @@ const Jobs = {
   },
   clearFinished() { this.list = this.list.filter((j) => !['done', 'error', 'canceled'].includes(j.status)); },
 
-  /* free public servers: ask each in turn until one hands back the video, then save it straight onto this device */
+  /* free routes: pick the best one for the site, fall back to the cobalt servers */
+  async runFree(job) {
+    if (job.platform === 'youtube' && (job.ytV || job.ytA || job.ytP) && job.kind !== 'mp3') {
+      try { return await this.runYouTube(job); }
+      catch (e) { if (job.canceled) return; job.firstErr = e; }
+    }
+    if (job.platform === 'tiktok') {
+      try { return await this.runTikTok(job); }
+      catch (e) { if (job.canceled) return; job.firstErr = e; }
+    }
+    try { return await this.runPublic(job); }
+    catch (e) { throw job.firstErr && /blockedSite|allFailed/.test(e.code || '') ? job.firstErr : e; }
+  },
+
+  async runYouTube(job) {
+    const id = ytId(job.url);
+    this.update({ id: job.id, status: 'downloading', progress: 0, note: t('pub.connecting') });
+    const r = await invidiousVideo(id, job.ytBase);
+    if (!r) throw new Error(t('pub.ytBusy'));
+    const F = ytFormatsFrom(r.base, r.j);
+    const want = [];
+    if (job.ytP) { const p = F.prog.find((x) => x.itag === job.ytP) || F.prog[0]; if (p) want.push(p); }
+    else {
+      if (job.kind === 'video') {
+        let v = F.vids.find((x) => x.itag === job.ytV);
+        if (!v) v = F.vids.filter((x) => x.height <= (job.height || 720)).sort((a, b) => b.height - a.height || b.bitrate - a.bitrate)[0] || F.vids[F.vids.length - 1];
+        if (v) want.push(v);
+      }
+      const a = F.auds.find((x) => x.itag === job.ytA) || F.auds[0];
+      if (a) want.push(a);
+    }
+    if (!want.length || (job.kind === 'video' && !job.ytP && want.length < 2)) throw new Error(t('pub.unavailable'));
+    const total = want.reduce((x, f) => x + (f.size || 0), 0);
+    let got = 0; const t0 = Date.now(); let lastUi = 0;
+    job.abort = new AbortController();
+    const onBytes = (n) => {
+      got += n; const now = Date.now();
+      if (now - lastUi > 400) { lastUi = now; const speed = got / Math.max(0.1, (now - t0) / 1000); this.update({ id: job.id, status: 'downloading', note: '', got, progress: total ? Math.min(99, got / total * 100) : 0, speed, eta: total ? (total - got) / speed : 0 }); }
+    };
+    const bufs = [];
+    for (const f of want) bufs.push(await getBytes(f.url, f.size, onBytes, job.abort.signal));
+    let parts, type, ext;
+    if (job.ytP) { parts = [bufs[0]]; type = 'video/mp4'; ext = 'mp4'; }
+    else if (job.kind === 'video') {
+      this.update({ id: job.id, status: 'processing' });
+      await sleep(30);
+      parts = window.VVMux.joinFMP4(bufs[0], bufs[1]); type = 'video/mp4'; ext = 'mp4';
+    } else { parts = [bufs[bufs.length - 1]]; type = 'audio/mp4'; ext = 'm4a'; }
+    let thumbBlob = null;
+    try { const tr = await fetch('https://i.ytimg.com/vi/' + id + '/mqdefault.jpg'); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {}
+    await this.store(job, new Blob(parts, { type }), type, ext, thumbBlob);
+  },
+
+  async runTikTok(job) {
+    this.update({ id: job.id, status: 'downloading', progress: 0, note: t('pub.connecting') });
+    const d = await tikwm(job.url);
+    const url = job.kind === 'video' ? (job.pq === 'max' || +job.pq >= 720 ? d.hdplay || d.play : d.play || d.hdplay) : d.music;
+    if (!url) throw new Error(t('pub.unavailable'));
+    if (job.autoTitle && d.title) job.title = d.title;
+    if (!job.thumbnail && d.cover) job.thumbnail = d.cover;
+    await this.saveFromUrl(job, url, { filename: job.kind === 'video' ? 'tiktok.mp4' : 'sound.mp3' });
+  },
+
+  /* cobalt servers: ask each in turn until one hands back the file, then save it onto this device */
   async runPublic(job) {
-    await Public.instances();
-    const list = Public.ordered(job.platform);
+    await Routes.load();
+    const list = Routes.cobaltFor(job.platform);
     let lastErr = null;
     for (const inst of list) {
       if (job.canceled) return;
       this.update({ id: job.id, status: 'downloading', progress: 0, note: t('pub.asking', { n: list.indexOf(inst) + 1, total: list.length }) });
       let d;
       try { d = await Public.request(inst, job); }
-      catch (e) { lastErr = new Error(t('pub.unreachable')); continue; }
+      catch (e) { lastErr = lastErr || new Error(t('pub.unreachable')); continue; }
       if (!d || d.status === 'error') {
         const code = d && d.error && d.error.code;
-        lastErr = new Error(Public.errText(code));
+        lastErr = new Error(Public.errText(code)); lastErr.code = /youtube\.login|fetch\.|auth|jwt/.test(code || '') ? 'blockedSite' : code;
         if (Public.fatal(code)) break;
         continue;
       }
@@ -425,9 +602,8 @@ const Jobs = {
         if (!one) { lastErr = new Error(t('pub.unavailable')); continue; }
         url = one.url; filename = '';
         if (!job.item && pickList.length > 1 && !job.pickerExpanded) {
-          // a post with several videos: queue the others as their own downloads
           job.pickerExpanded = true;
-          const spec = {}; ['url', 'format', 'kind', 'pq', 'thumbnail', 'duration', 'platform', 'folder', 'uploader', 'quality'].forEach((k) => spec[k] = job[k]);
+          const spec = {}; ['url', 'format', 'kind', 'pq', 'thumbnail', 'duration', 'platform', 'folder', 'uploader', 'quality', 'autoTitle'].forEach((k) => spec[k] = job[k]);
           pickList.slice(1).forEach((x, i) => Jobs.start(Object.assign({}, spec, { item: i + 2, pickerExpanded: true, title: job.title + ' (' + (i + 2) + ')' })));
           job.title += ' (1)';
         }
@@ -439,7 +615,7 @@ const Jobs = {
       }
       try {
         await this.saveFromUrl(job, url, { filename });
-        Public.remember(job.platform, inst);
+        Routes.remember('cobalt', job.platform, inst);
         return;
       } catch (e) {
         if (job.canceled) return;
@@ -447,7 +623,20 @@ const Jobs = {
         if (e.cors) { this.update({ id: job.id, status: 'error', error: t('pub.openInstead'), openUrl: url }); return; }
       }
     }
-    throw lastErr || new Error(t('pub.allFailed'));
+    const err = lastErr && lastErr.code === 'blockedSite' ? new Error(t('pub.siteBlocked', { site: platformById(job.platform).name })) : (lastErr || new Error(t('pub.allFailed')));
+    err.code = (lastErr && lastErr.code) || 'allFailed';
+    throw err;
+  },
+
+  async store(job, blob, type, ext, thumbBlob) {
+    const kind = /^audio/.test(type) ? (ext === 'mp3' ? 'mp3' : 'm4a') : 'video';
+    const item = {
+      id: job.id, title: job.title || 'Video', platform: job.platform, folder: job.folder || '', kind, quality: job.quality,
+      ext, size: blob.size, duration: job.duration || 0, created: Date.now(), source: job.url, uploader: job.uploader || '', mime: type,
+    };
+    await Store.addWeb(item, blob, thumbBlob);
+    if (thumbBlob) Store.thumbCache.set(item.id, URL.createObjectURL(thumbBlob));
+    this.update({ id: job.id, status: 'done', progress: 100, item });
   },
 
   /* copy a finished file into the app's offline storage (IndexedDB), with progress */
@@ -478,14 +667,7 @@ const Jobs = {
     let thumbBlob = null;
     const thumbUrl = meta.thumbUrl || job.thumbnail;
     if (thumbUrl) { try { const tr = await fetch(thumbUrl); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {} }
-    const kind = /^audio/.test(type) ? (ext === 'mp3' ? 'mp3' : 'm4a') : 'video';
-    const item = {
-      id: job.id, title: job.title || 'Video', platform: job.platform, folder: job.folder || '', kind, quality: job.quality,
-      ext, size: blob.size, duration: job.duration || 0, created: Date.now(), source: job.url, uploader: job.uploader || '', mime: type,
-    };
-    await Store.addWeb(item, blob, thumbBlob);
-    if (thumbBlob) Store.thumbCache.set(item.id, URL.createObjectURL(thumbBlob));
-    this.update({ id: job.id, status: 'done', progress: 100, item });
+    await this.store(job, blob, type, ext, thumbBlob);
   },
 
   async runServer(job) {
@@ -558,6 +740,7 @@ function publicChoices(info) {
   return out;
 }
 function buildChoices(info) {
+  if (info.ytFormats) return ytChoices(info);
   if (info.public) return publicChoices(info);
   const dur = info.duration || 0;
   const fm = (info.formats || []).filter((f) => f && f.protocol !== 'mhtml' && !/storyboard|images/i.test(f.format_note || '') && f.ext !== 'mhtml');
@@ -789,7 +972,7 @@ function bindJobButtons() {
   $$('[data-retry]').forEach((b) => b.onclick = () => {
     const j = Jobs.get(b.dataset.retry); if (!j) return;
     Jobs.list = Jobs.list.filter((x) => x !== j);
-    const spec = {}; ['url', 'item', 'format', 'kind', 'pq', 'title', 'thumbnail', 'duration', 'platform', 'folder', 'uploader', 'quality', 'pickerExpanded'].forEach((k) => spec[k] = j[k]);
+    const spec = {}; ['url', 'item', 'format', 'kind', 'pq', 'title', 'thumbnail', 'duration', 'platform', 'folder', 'uploader', 'quality', 'pickerExpanded', 'ytV', 'ytA', 'ytP', 'ytBase', 'height', 'autoTitle'].forEach((k) => spec[k] = j[k]);
     Jobs.start(spec); renderDownloads($('#main'));
   });
   $$('[data-save]').forEach((b) => b.onclick = () => { const it = Store.get(b.dataset.save); if (it) saveItem(it); });
@@ -1019,6 +1202,7 @@ function showChoices(sh, url, info, entryIdx) {
     const ch = eIdx === entryIdx ? c : (buildChoices(e).find((x) => x.key === c.key) || buildChoices(e)[0]);
     Jobs.start({
       url: info.webpage_url || url, item: entries ? eIdx + 1 : null, format: ch.format, kind: ch.kind, pq: ch.pq, autoTitle: !!info.autoTitle,
+      ytV: ch.ytV, ytA: ch.ytA, ytP: ch.ytP, ytBase: info.ytBase, height: ch.height,
       title: (e.title || info.title || p.name) + (entries && entries.length > 1 ? ' (' + (eIdx + 1) + ')' : ''),
       thumbnail: e.thumbnail || info.thumbnail || '', duration: e.duration || 0, platform: p.id, folder,
       uploader: info.uploader || info.channel || '', quality: ch.label,
@@ -1036,6 +1220,7 @@ function showChoices(sh, url, info, entryIdx) {
     <div class="group-title">${esc(t('an.choose'))}</div>
     <div class="group">${choices.map((c, i) => `<button class="q" data-c="${i}"><span class="qb ${['HD', '2K', '4K', '8K'].includes(c.tag) ? 'hd' : ''}">${c.kind === 'video' ? esc(c.tag || 'MP4') : I.music}</span><span class="lbl"><b>${esc(c.label)}</b><small>${esc([c.sub, c.size ? '≈ ' + fmtBytes(c.size) : ''].filter(Boolean).join(' · '))}</small></span><span class="dl">${I.download}</span></button>`).join('')}</div>
     ${entries && entries.length > 1 ? `<button class="btn accent block" id="anAll" style="margin-top:14px">${I.download}${esc(t('an.all', { n: numLocal(entries.length) }))}</button>` : ''}
+    ${info.ytFormats && info.ytFormats.higher ? `<p class="note" style="margin:12px 4px 0">${esc(t('pub.higher'))}</p>` : ''}
     <p class="note" style="margin:12px 4px 0">${esc(t('an.note'))}</p>`;
   $$('[data-e]', sh).forEach((b) => b.onclick = () => showChoices(sh, url, info, +b.dataset.e));
   $('#anFolder', sh).onclick = async () => { const d = await chooseFolder(folder); if (d !== null) { folder = d; save({ lastFolder: d }); $('#anFolderV', sh).textContent = d || t('f.none'); } };

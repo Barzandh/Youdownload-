@@ -27,6 +27,14 @@ The Android app downloads on the phone itself (it bundles [yt-dlp](https://githu
 1. Open **https://barzandh.github.io/Youdownload-/** in **Safari** → **Share** → **Add to Home Screen**.
 2. Paste a link and pick a quality. That's it: the web app downloads straight away through free public download servers ([cobalt](https://github.com/imputnet/cobalt) instances, tried one after another). The finished video is saved inside the app so you can watch it offline. Tap **Save to Photos / Files** to put a copy in your Photos.
 
+How each site is fetched on iPhone:
+- **YouTube**: through public Invidious servers. You get the real list of resolutions up to 1080p, and the picture and sound are joined in the browser by `web/mux.js`.
+- **X, Facebook**: through public cobalt servers.
+- **TikTok**: through tikwm, falling back to cobalt.
+- **Instagram, Snapchat, Threads**: cobalt servers, when they aren't blocked. These sites often block every free server, so the Android app (which uses your own connection) is the reliable way.
+
+A GitHub check (`.github/workflows/diag.yml`) tests every server every 6 hours and publishes the working ones to `live.json` on the `diag` branch. The app reads that list, so it always tries the working servers first.
+
 The list of public servers lives in [`web/instances.json`](web/instances.json). If one stops working, edit that file and the app picks up the change without an update.
 
 **Optional: your own server.** Public servers can be busy, and YouTube sometimes blocks them. Your own free server is more reliable and lists every exact resolution:

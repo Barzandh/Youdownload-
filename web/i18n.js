@@ -1,6 +1,9 @@
 /* VidVault translations — English and Arabic */
 (function () {
   const en = {
+    'pub.connecting': 'Connecting…', 'pub.ytBusy': 'The free YouTube servers are busy right now — try again in a few minutes.',
+    'pub.blockedSite': 'This site blocked the free download server', 'pub.siteBlocked': '{site} is blocking the free download servers right now. Try again later, or use the Android app (it downloads over your own connection).',
+    'pub.higher': 'Higher qualities (1440p, 4K) come in a format iPhone can’t join — use the Android app for those.',
     'upd.ready': 'Update ready — it will be used next time you open VidVault', 'upd.latest': 'You have the latest version', 'upd.offline': 'Connect to the internet to check for updates',
     'engine.public': 'Free public servers', 'pub.video': 'video', 'pub.best': 'Best quality', 'pub.bestSub': 'Highest resolution the post has', 'pub.upTo': 'or the closest available',
     'pub.vp9': 'WebM · VP9 — plays on newer iPhones', 'pub.original': 'original', 'pub.asking': 'Finding a download server ({n}/{total})…',
@@ -44,7 +47,7 @@
     'an.failedTip': 'Check that the post is public and the link is complete. Private, age-restricted or deleted videos can’t be saved.',
     'an.choose': 'Choose quality', 'an.saveIn': 'Save in', 'an.item': 'Video {n}', 'an.all': 'Download all {n} (best quality)',
     'an.added': 'Added to downloads · {q}', 'an.addedN': '{n} videos added to downloads',
-    'an.note': 'Sizes are estimates when shown. All the resolutions the site offers are listed. 4K/VP9 files play in the VidVault player on Android; on iPhone pick 1080p or lower if a file won’t play.',
+    'an.note': 'Sizes are estimates. Videos are saved inside VidVault for offline viewing; use Save to Photos / Files to copy them out.',
     'q.original': 'Original', 'q.bestAvailable': 'Best available', 'q.audio': 'Audio only', 'q.audioSub': 'Original sound', 'q.mp3Sub': 'Works everywhere',
     'ns.title': 'Connect a download server', 'ns.body': 'Browsers aren’t allowed to fetch videos from these sites directly, so the web app uses your own free VidVault server to do it. Setting one up takes about 3 minutes and only has to be done once. The Android app doesn’t need this.',
     'ns.connect': 'Enter server address', 'ns.guide': 'Step-by-step setup guide', 'ns.android': 'Get the Android app instead',
@@ -91,6 +94,9 @@
   };
 
   const ar = {
+    'pub.connecting': 'جارٍ الاتصال…', 'pub.ytBusy': 'خوادم يوتيوب المجانية مشغولة الآن — حاول بعد بضع دقائق.',
+    'pub.blockedSite': 'حجب هذا الموقع خادم التنزيل المجاني', 'pub.siteBlocked': '{site} يحجب خوادم التنزيل المجانية حاليًا. حاول لاحقًا، أو استخدم تطبيق أندرويد (ينزّل عبر اتصالك أنت).',
+    'pub.higher': 'الدقّات الأعلى (1440p و4K) بصيغة لا يستطيع الآيفون دمجها — استخدم تطبيق أندرويد لها.',
     'upd.ready': 'التحديث جاهز — سيُستخدم عند فتح VidVault في المرة القادمة', 'upd.latest': 'لديك أحدث إصدار', 'upd.offline': 'اتصل بالإنترنت للتحقق من التحديثات',
     'engine.public': 'خوادم عامة مجانية', 'pub.video': 'فيديو', 'pub.best': 'أفضل جودة', 'pub.bestSub': 'أعلى دقة متاحة في المنشور', 'pub.upTo': 'أو أقرب دقة متاحة',
     'pub.vp9': 'WebM · VP9 — يعمل على أجهزة الآيفون الحديثة', 'pub.original': 'الأصلي', 'pub.asking': 'جارٍ البحث عن خادم تنزيل ({n}/{total})…',
@@ -134,7 +140,7 @@
     'an.failedTip': 'تأكد أن المنشور عام وأن الرابط كامل. لا يمكن حفظ الفيديوهات الخاصة أو المقيّدة بالعمر أو المحذوفة.',
     'an.choose': 'اختر الجودة', 'an.saveIn': 'الحفظ في', 'an.item': 'فيديو {n}', 'an.all': 'تنزيل الكل ({n}) بأفضل جودة',
     'an.added': 'أُضيف إلى التنزيلات · {q}', 'an.addedN': 'أُضيف {n} فيديو إلى التنزيلات',
-    'an.note': 'الأحجام تقريبية. تظهر كل الدقّات التي يوفرها الموقع. ملفات 4K/VP9 تعمل في مشغّل VidVault على أندرويد؛ على الآيفون اختر 1080p أو أقل إذا لم يعمل الملف.',
+    'an.note': 'الأحجام تقريبية. تُحفظ الفيديوهات داخل VidVault للمشاهدة دون إنترنت؛ استخدم «حفظ في الصور / الملفات» لنسخها خارجه.',
     'q.original': 'الأصلي', 'q.bestAvailable': 'أفضل جودة متاحة', 'q.audio': 'صوت فقط', 'q.audioSub': 'الصوت الأصلي', 'q.mp3Sub': 'يعمل في كل مكان',
     'ns.title': 'اربط خادم التنزيل', 'ns.body': 'لا تسمح المتصفحات بجلب الفيديو من هذه المواقع مباشرةً، لذلك يستخدم تطبيق الويب خادم VidVault الخاص بك والمجاني. إعداده يستغرق نحو 3 دقائق ومرة واحدة فقط. تطبيق أندرويد لا يحتاج إلى ذلك.',
     'ns.connect': 'إدخال عنوان الخادم', 'ns.guide': 'دليل الإعداد خطوة بخطوة', 'ns.android': 'تنزيل تطبيق أندرويد بدلًا من ذلك',
