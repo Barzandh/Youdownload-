@@ -1,6 +1,7 @@
 /* VidVault translations — English and Arabic */
 (function () {
   const en = {
+    'pub.stalled': 'The download server stopped sending the video', 'job.interrupted': 'Interrupted — tap ↻ to try again', 'paste.pill': 'Paste link & download',
     'pub.connecting': 'Connecting…', 'pub.ytBusy': 'The free YouTube servers are busy right now — try again in a few minutes.',
     'pub.blockedSite': 'This site blocked the free download server', 'pub.siteBlocked': '{site} is blocking the free download servers right now. Try again later, or use the Android app (it downloads over your own connection).',
     'pub.higher': 'Higher qualities (1440p, 4K) come in a format iPhone can’t join — use the Android app for those.',
@@ -94,6 +95,7 @@
   };
 
   const ar = {
+    'pub.stalled': 'توقّف خادم التنزيل عن إرسال الفيديو', 'job.interrupted': 'توقّف — اضغط ↻ للمحاولة مجددًا', 'paste.pill': 'لصق الرابط والتنزيل',
     'pub.connecting': 'جارٍ الاتصال…', 'pub.ytBusy': 'خوادم يوتيوب المجانية مشغولة الآن — حاول بعد بضع دقائق.',
     'pub.blockedSite': 'حجب هذا الموقع خادم التنزيل المجاني', 'pub.siteBlocked': '{site} يحجب خوادم التنزيل المجانية حاليًا. حاول لاحقًا، أو استخدم تطبيق أندرويد (ينزّل عبر اتصالك أنت).',
     'pub.higher': 'الدقّات الأعلى (1440p و4K) بصيغة لا يستطيع الآيفون دمجها — استخدم تطبيق أندرويد لها.',

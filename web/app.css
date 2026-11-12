@@ -288,3 +288,9 @@ button.row:active, .row.tap:active { background: var(--card-2); }
   #app { position: static; }
   main { overflow: visible; }
 }
+
+.brand-ic { width: 64px; height: 64px; border-radius: 15px; box-shadow: 0 6px 22px rgba(120, 60, 255, .35); }
+.logo-word { background: linear-gradient(120deg, #ff2fb9 0%, #8b3dff 45%, #2f6bff 70%, #21d4ff 100%); -webkit-background-clip: text; background-clip: text; }
+.paste-pill { position: fixed; z-index: 45; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 132px); display: flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; padding: 12px 20px; border-radius: 26px; font-size: 16px; font-weight: 600; box-shadow: 0 8px 26px rgba(0,0,0,.3); animation: up .25s ease-out; }
+.paste-pill svg { width: 20px; height: 20px; }

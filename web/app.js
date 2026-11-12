@@ -195,8 +195,11 @@ const IDB = {
   open() {
     if (this.db) return Promise.resolve(this.db);
     return new Promise((res, rej) => {
-      const r = indexedDB.open('vidvault', 1);
-      r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('items', { keyPath: 'id' }); d.createObjectStore('blobs'); d.createObjectStore('thumbs'); };
+      const r = indexedDB.open('vidvault', 2);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        for (const [n, o] of [['items', { keyPath: 'id' }], ['blobs'], ['thumbs'], ['parts']]) if (!d.objectStoreNames.contains(n)) d.createObjectStore(n, o);
+      };
       r.onsuccess = () => { this.db = r.result; res(this.db); };
       r.onerror = () => rej(r.error);
     });
@@ -214,7 +217,30 @@ const IDB = {
   all(store) { return this.tx(store, 'readonly', (s) => s.getAll()); },
   put(store, val, key) { return this.tx(store, 'readwrite', (s) => (key === undefined ? s.put(val) : s.put(val, key))); },
   del(store, key) { return this.tx(store, 'readwrite', (s) => s.delete(key)); },
+  delRange(store, lo, hi) { return this.tx(store, 'readwrite', (s) => s.delete(IDBKeyRange.bound(lo, hi))); },
+  getRange(store, lo, hi) { return this.tx(store, 'readonly', (s) => s.getAll(IDBKeyRange.bound(lo, hi))); },
+  clear(store) { return this.tx(store, 'readwrite', (s) => s.clear()); },
 };
+
+/* Writes a download to the phone's storage in 4 MB pieces as it arrives, so big videos never sit in memory. */
+class DiskWriter {
+  constructor(key) { this.key = key; this.n = 0; this.buf = []; this.len = 0; this.size = 0; }
+  async write(u8) {
+    this.buf.push(u8); this.len += u8.length; this.size += u8.length;
+    if (this.len >= 4 * 1024 * 1024) await this.flush();
+  }
+  async flush() {
+    if (!this.len) return;
+    const b = new Blob(this.buf); this.buf = []; this.len = 0;
+    await IDB.put('parts', b, this.key + ':' + String(this.n++).padStart(6, '0'));
+  }
+  async blob(type) {
+    await this.flush();
+    const parts = await IDB.getRange('parts', this.key + ':', this.key + ':~');
+    return new Blob(parts, { type: type || '' });
+  }
+  clear() { return IDB.delRange('parts', this.key + ':', this.key + ':~').catch(() => {}); }
+}
 
 const Store = {
   items: [],
@@ -367,14 +393,17 @@ const Public = {
 function ytId(url) { const m = String(url).match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/live\/|\/embed\/|\/v\/)([\w-]{11})/); return m ? m[1] : ''; }
 async function invidiousVideo(id, prefer) {
   await Routes.load();
-  const list = Routes.order(Routes.invidious(), [prefer]);
-  for (const base of list) {
-    try {
-      const j = await fetchJSON(base + '/api/v1/videos/' + id + '?local=true', 12000);
-      if (j && !j.error && (j.adaptiveFormats || []).length) { Routes.remember('inv', 'yt', base); return { base, j }; }
-    } catch (e) {}
-  }
-  return null;
+  const list = Routes.order(Routes.invidious(), [prefer]).slice(0, 6);
+  // ask several servers at once; the first good answer wins, so one dead server can't make you wait
+  const tries = list.map((base) => fetchJSON(base + '/api/v1/videos/' + id + '?local=true', 10000).then((j) => {
+    if (j && !j.error && (j.adaptiveFormats || []).length) return { base, j };
+    throw new Error('bad');
+  }));
+  try {
+    const r = await Promise.any(tries);
+    Routes.remember('inv', 'yt', r.base);
+    return r;
+  } catch (e) { return null; }
 }
 const absUrl = (base, u) => (!u ? '' : /^https?:/.test(u) ? u : u.startsWith('//') ? 'https:' + u : base + u);
 function ytFormatsFrom(base, j) {
@@ -402,40 +431,57 @@ function ytChoices(info) {
   if (a) out.push({ key: 'm4a', label: t('q.audio') + ' · M4A', tag: 'AUD', kind: 'm4a', ytA: a.itag, size: a.size, sub: t('q.audioSub') + ' · ' + Math.round(a.bitrate / 1000) + ' kbps' });
   return out;
 }
-/* download bytes in pieces (YouTube slows down big single requests) */
-async function getBytes(url, total, onBytes, signal) {
-  if (!total) {
-    const r = await fetch(url, { signal }); if (!r.ok) throw new Error('HTTP ' + r.status);
-    const rd = r.body.getReader(); const parts = []; let n = 0;
-    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); n += value.length; onBytes(value.length); }
-    const out = new Uint8Array(n); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out;
+/* download in pieces (YouTube slows down big single requests), straight to storage, giving up if it stalls */
+async function readStream(r, onChunk, signal, stallMs) {
+  const rd = r.body.getReader();
+  for (;;) {
+    let timer;
+    const stall = new Promise((_, rej) => { timer = setTimeout(() => { try { rd.cancel(); } catch (e) {} rej(Object.assign(new Error(t('pub.stalled')), { stalled: true })); }, stallMs || 25000); });
+    let res;
+    try { res = await Promise.race([rd.read(), stall]); } finally { clearTimeout(timer); }
+    if (res.done) return;
+    if (signal && signal.aborted) throw new Error('canceled');
+    if (await onChunk(res.value) === false) { try { rd.cancel(); } catch (e) {} return; }
   }
-  const CH = 4 * 1024 * 1024; const out = new Uint8Array(total);
-  for (let s = 0; s < total;) {
-    const e = Math.min(total, s + CH) - 1;
-    let pos = s, tries = 0;
+}
+async function fetchWithTimeout(url, signal, ms) {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), ms || 30000);
+  const onAbort = () => ctl.abort(); if (signal) signal.addEventListener('abort', onAbort);
+  try { return await fetch(url, { signal: ctl.signal }); }
+  catch (e) { if (signal && signal.aborted) throw e; throw Object.assign(new Error(t('pub.stalled')), { stalled: true, cors: !ctl.signal.aborted }); }
+  finally { clearTimeout(tm); if (signal) signal.removeEventListener('abort', onAbort); }
+}
+async function downloadTo(writer, url, total, onBytes, signal) {
+  if (!total) {
+    const r = await fetchWithTimeout(url, signal); if (!r.ok) throw new Error('HTTP ' + r.status);
+    await readStream(r, async (v) => { await writer.write(v); onBytes(v.length); }, signal);
+    return;
+  }
+  const CH = 4 * 1024 * 1024;
+  let pos = 0;
+  while (pos < total) {
+    const e = Math.min(total, pos + CH) - 1;
+    let tries = 0;
     for (;;) {
+      const start = pos;
       try {
-        const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'range=' + pos + '-' + e, { signal });
+        const r = await fetchWithTimeout(url + (url.includes('?') ? '&' : '?') + 'range=' + pos + '-' + e, signal);
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        const rd = r.body.getReader();
-        for (;;) {
-          const { done, value } = await rd.read(); if (done) break;
-          const n = Math.min(value.length, total - pos); out.set(value.subarray(0, n), pos); pos += n; onBytes(n);
-          if (pos >= total) break;
-        }
-        break;
+        await readStream(r, async (v) => {
+          const n = Math.min(v.length, total - pos);
+          await writer.write(n === v.length ? v : v.subarray(0, n)); pos += n; onBytes(n);
+          return pos < total;
+        }, signal);
+        if (pos > start) break;
+        throw new Error(t('pub.unavailable'));
       } catch (err) {
         if (signal && signal.aborted) throw err;
+        if (pos > start) break;                 // got part of it: continue from where it stopped
         if (++tries >= 4) throw err;
         await sleep(1000 * tries);
       }
     }
-    if (pos >= total) break;
-    if (pos <= s) throw new Error(t('pub.unavailable'));
-    s = pos;
   }
-  return out;
 }
 
 /* TikTok through tikwm */
@@ -492,7 +538,24 @@ const Jobs = {
       Store.refresh().then(() => { Store.loadThumbs().then(() => { if (State.tab !== 'browser') render(); }); });
       notifyDone(cur);
     }
-    renderJob(cur); updateBadge();
+    renderJob(cur); updateBadge(); this.persist();
+  },
+  persist() {
+    if (N) return;
+    clearTimeout(this._pt);
+    this._pt = setTimeout(() => {
+      const keep = this.list.slice(0, 40).map((j) => { const o = {}; for (const k in j) if (!['abort', 'writers', 'item'].includes(k)) o[k] = j[k]; return o; });
+      try { localStorage.setItem('vv.jobs', JSON.stringify(keep)); } catch (e) {}
+    }, 300);
+  },
+  restore() {
+    if (N) return;
+    const saved = safeJSON(localStorage.getItem('vv.jobs'), []);
+    for (const j of saved) {
+      if (!['done', 'error', 'canceled'].includes(j.status)) Object.assign(j, { status: 'error', error: t('job.interrupted'), note: '' });
+      this.list.push(j);
+    }
+    IDB.clear('parts').catch(() => {});   // leftovers of downloads that were interrupted
   },
   active() { return this.list.filter((j) => !['done', 'error', 'canceled'].includes(j.status)); },
   async start(spec) {
@@ -510,9 +573,10 @@ const Jobs = {
     if (N) try { N.cancel(id); } catch (e) {}
     if (j.serverJob) serverFetch('/api/jobs/' + j.serverJob, { method: 'DELETE' }).catch(() => {});
     if (j.abort) j.abort.abort();
+    (j.writers || []).forEach((w) => w.clear());
     this.update({ id, status: 'canceled' });
   },
-  clearFinished() { this.list = this.list.filter((j) => !['done', 'error', 'canceled'].includes(j.status)); },
+  clearFinished() { this.list = this.list.filter((j) => !['done', 'error', 'canceled'].includes(j.status)); this.persist(); },
 
   /* free routes: pick the best one for the site, fall back to the cobalt servers */
   async runFree(job) {
@@ -553,18 +617,24 @@ const Jobs = {
       got += n; const now = Date.now();
       if (now - lastUi > 400) { lastUi = now; const speed = got / Math.max(0.1, (now - t0) / 1000); this.update({ id: job.id, status: 'downloading', note: '', got, progress: total ? Math.min(99, got / total * 100) : 0, speed, eta: total ? (total - got) / speed : 0 }); }
     };
-    const bufs = [];
-    for (const f of want) bufs.push(await getBytes(f.url, f.size, onBytes, job.abort.signal));
-    let parts, type, ext;
-    if (job.ytP) { parts = [bufs[0]]; type = 'video/mp4'; ext = 'mp4'; }
-    else if (job.kind === 'video') {
-      this.update({ id: job.id, status: 'processing' });
-      await sleep(30);
-      parts = window.VVMux.joinFMP4(bufs[0], bufs[1]); type = 'video/mp4'; ext = 'mp4';
-    } else { parts = [bufs[bufs.length - 1]]; type = 'audio/mp4'; ext = 'm4a'; }
-    let thumbBlob = null;
-    try { const tr = await fetch('https://i.ytimg.com/vi/' + id + '/mqdefault.jpg'); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {}
-    await this.store(job, new Blob(parts, { type }), type, ext, thumbBlob);
+    const writers = want.map((f, i) => new DiskWriter(job.id + '-' + i));
+    job.writers = writers;
+    try {
+      for (let i = 0; i < want.length; i++) await downloadTo(writers[i], want[i].url, want[i].size, onBytes, job.abort.signal);
+      let blob, type, ext;
+      if (job.ytP) { type = 'video/mp4'; ext = 'mp4'; blob = await writers[0].blob(type); }
+      else if (job.kind === 'video') {
+        this.update({ id: job.id, status: 'processing' });
+        type = 'video/mp4'; ext = 'mp4';
+        const parts = await window.VVMux.join(await writers[0].blob(), await writers[1].blob());
+        blob = new Blob(parts, { type });
+      } else { type = 'audio/mp4'; ext = 'm4a'; blob = await writers[writers.length - 1].blob(type); }
+      let thumbBlob = null;
+      try { const tr = await fetchWithTimeout('https://i.ytimg.com/vi/' + id + '/mqdefault.jpg', null, 8000); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {}
+      await this.store(job, blob, type, ext, thumbBlob);
+    } finally {
+      for (const w of writers) w.clear();
+    }
   },
 
   async runTikTok(job) {
@@ -639,35 +709,37 @@ const Jobs = {
     this.update({ id: job.id, status: 'done', progress: 100, item });
   },
 
-  /* copy a finished file into the app's offline storage (IndexedDB), with progress */
+  /* copy a finished file into the app's offline storage, piece by piece, with progress; gives up if it stalls */
   async saveFromUrl(job, url, meta = {}) {
     job.abort = new AbortController();
     let r;
-    try { r = await fetch(url, { signal: job.abort.signal }); }
-    catch (e) { if (job.canceled) throw e; const er = new Error(t('pub.blocked')); er.cors = true; throw er; }
+    try { r = await fetchWithTimeout(url, job.abort.signal, 45000); }
+    catch (e) { if (job.canceled) throw e; if (e.cors) { const er = new Error(t('pub.blocked')); er.cors = true; throw er; } throw e; }
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const total = +r.headers.get('Content-Length') || +r.headers.get('Estimated-Content-Length') || meta.size || 0;
     let type = (r.headers.get('Content-Type') || '').split(';')[0];
-    const reader = r.body.getReader(); const parts = []; let got = 0; const t0 = Date.now(); let lastUi = 0;
-    for (;;) {
-      const { done, value } = await reader.read(); if (done) break;
-      parts.push(value); got += value.length;
-      const now = Date.now();
-      if (now - lastUi > 400) {
-        lastUi = now; const speed = got / Math.max(0.1, (now - t0) / 1000);
-        const base = meta.from || 0;
-        this.update({ id: job.id, status: 'saving', note: '', got, progress: total ? base + (got / total) * (100 - base) : 0, speed, eta: total ? (total - got) / speed : 0 });
-      }
-    }
-    if (!got) throw new Error(t('pub.unavailable'));
-    let ext = (meta.filename.match(/\.(\w{2,4})$/) || [])[1] || meta.ext || '';
-    if (!ext) ext = /webm/.test(type) ? 'webm' : /mpeg/.test(type) ? 'mp3' : /audio/.test(type) ? 'm4a' : job.kind === 'mp3' ? 'mp3' : job.kind === 'm4a' ? 'm4a' : 'mp4';
-    if (!type || type === 'application/octet-stream') type = { mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', m4a: 'audio/mp4', opus: 'audio/ogg', ogg: 'audio/ogg', mkv: 'video/x-matroska' }[ext] || 'video/mp4';
-    const blob = new Blob(parts, { type });
-    let thumbBlob = null;
-    const thumbUrl = meta.thumbUrl || job.thumbnail;
-    if (thumbUrl) { try { const tr = await fetch(thumbUrl); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {} }
-    await this.store(job, blob, type, ext, thumbBlob);
+    const w = new DiskWriter(job.id + '-dl');
+    job.writers = [w];
+    try {
+      let got = 0; const t0 = Date.now(); let lastUi = 0;
+      await readStream(r, async (value) => {
+        await w.write(value); got += value.length;
+        const now = Date.now();
+        if (now - lastUi > 400) {
+          lastUi = now; const speed = got / Math.max(0.1, (now - t0) / 1000); const base = meta.from || 0;
+          this.update({ id: job.id, status: 'saving', note: '', got, progress: total ? Math.min(99, base + (got / total) * (100 - base)) : 0, speed, eta: total ? (total - got) / speed : 0 });
+        }
+      }, job.abort.signal, 30000);
+      if (got < 1000) throw new Error(t('pub.unavailable'));
+      let ext = ((meta.filename || '').match(/\.(\w{2,4})$/) || [])[1] || meta.ext || '';
+      if (!ext) ext = /webm/.test(type) ? 'webm' : /mpeg/.test(type) ? 'mp3' : /audio/.test(type) ? 'm4a' : job.kind === 'mp3' ? 'mp3' : job.kind === 'm4a' ? 'm4a' : 'mp4';
+      if (!type || type === 'application/octet-stream' || type === 'text/plain') type = { mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', m4a: 'audio/mp4', opus: 'audio/ogg', ogg: 'audio/ogg', mkv: 'video/x-matroska' }[ext] || 'video/mp4';
+      const blob = await w.blob(type);
+      let thumbBlob = null;
+      const thumbUrl = meta.thumbUrl || job.thumbnail;
+      if (thumbUrl) { try { const tr = await fetchWithTimeout(thumbUrl, null, 8000); if (tr.ok) thumbBlob = await tr.blob(); } catch (e) {} }
+      await this.store(job, blob, type, ext, thumbBlob);
+    } finally { w.clear(); }
   },
 
   async runServer(job) {
@@ -1241,7 +1313,7 @@ function renderSettings(m) {
   const notifOk = S.notify && (N ? true : (typeof Notification !== 'undefined' && Notification.permission === 'granted'));
   const engineVer = N && N.engineVersion ? N.engineVersion() : '';
   m.innerHTML = `<div class="tab">
-    <div class="brand"><span class="logo-word">VidVault</span></div>
+    <div class="brand"><img src="icons/icon-192.png" alt="" class="brand-ic"><span class="logo-word">VidVault</span></div>
     <div class="group">
       <a class="row tap" href="${REPO}/issues" target="_blank" rel="noopener"><span class="ic">${I.mail}</span><span class="lbl" style="color:var(--accent)">${esc(t('set.support'))}</span></a>
       <button class="row tap" id="stShare"><span class="ic">${I.gift}</span><span class="lbl" style="color:var(--accent)">${esc(t('set.shareApp'))}</span></button>
@@ -1482,7 +1554,17 @@ function lockApp() {
   if (bio) setTimeout(tryBio, 300);
 }
 let hiddenAt = 0;
+/* coming back from YouTube/Instagram/… with a copied link: offer to paste it */
+function showPastePill() {
+  if (N || $('#pastePill') || $('.lock') || hasLayer()) return;
+  const b = document.createElement('button');
+  b.id = 'pastePill'; b.className = 'paste-pill'; b.innerHTML = I.paste + '<span>' + esc(t('paste.pill')) + '</span>';
+  b.onclick = () => { b.remove(); pasteAndGo(); };
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 9000);
+}
 document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && hiddenAt && Date.now() - hiddenAt > 1500) setTimeout(showPastePill, 300);
   if (document.hidden) hiddenAt = Date.now();
   else if (S.pinHash && hiddenAt && Date.now() - hiddenAt > 30000 && !$('.player')) lockApp();
 });
@@ -1574,6 +1656,7 @@ async function start() {
   setupOffline();
   applyLook();
   if (N) { try { N.setPrefs(JSON.stringify(S)); } catch (e) {} try { safeJSON(N.jobs(), []).forEach((j) => Jobs.list.push(j)); } catch (e) {} }
+  Jobs.restore();
   await Store.refresh();
   render();
   lockApp();

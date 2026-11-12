@@ -52,8 +52,9 @@ FORMAT_KEYS = ('format_id', 'ext', 'height', 'width', 'fps', 'vcodec', 'acodec',
 
 
 def is_threads(url):
+    """Sites whose post page we read ourselves when yt-dlp can't (Threads, Snapchat)."""
     try:
-        return re.search(r'(^|\.)threads\.(net|com)$', urllib.parse.urlparse(url).hostname or '') is not None
+        return re.search(r'(^|\.)(threads\.(net|com)|snapchat\.com)$', urllib.parse.urlparse(url).hostname or '') is not None
     except Exception:
         return False
 
@@ -138,6 +139,10 @@ def threads_videos(url, proxy=None):
                 urls.append(u)
         if urls and urls not in videos:
             videos.append(urls)
+    for m in re.finditer(r'"contentUrl"\s*:\s*"([^"]+)"', text):   # Snapchat (and other pages with video metadata)
+        u = m.group(1).replace('\\u002F', '/').replace('\\/', '/')
+        if u.startswith('http') and [u] not in videos:
+            videos.append([u])
     if not videos:
         for m in re.finditer(r'<meta[^>]+property="og:video(?::secure_url)?"[^>]+content="([^"]+)"', text):
             u = html.unescape(m.group(1))
@@ -154,15 +159,15 @@ def threads_videos(url, proxy=None):
 def threads_info(url, proxy=None):
     videos, meta = threads_videos(url, proxy)
     if not videos:
-        raise RuntimeError('No video found in this Threads post (it may be private or a photo post).')
-    title = (meta.get('og:description') or meta.get('og:title') or 'Threads video').strip()[:120]
+        raise RuntimeError('No video found in this post (it may be private or a photo post).')
+    title = (meta.get('og:description') or meta.get('og:title') or 'Video').strip()[:120]
 
     def entry(i, urls):
         return {'title': title, 'thumbnail': meta.get('og:image'), 'direct': True,
                 'formats': [{'format_id': 'tv%d_%d' % (i, j), 'ext': 'mp4', 'format_note': 'Video' if j == 0 else 'Version %d' % (j + 1)}
                             for j, _ in enumerate(urls[:1])]}
     res = entry(0, videos[0])
-    res.update({'webpage_url': url, 'uploader': meta.get('og:title', ''), 'extractor_key': 'Threads'})
+    res.update({'webpage_url': url, 'uploader': meta.get('og:title', ''), 'extractor_key': 'Page'})
     if len(videos) > 1:
         res['entries'] = [entry(i, v) for i, v in enumerate(videos)]
     return res

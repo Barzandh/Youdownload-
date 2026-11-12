@@ -30,7 +30,7 @@ final class Extract {
             "filesize_approx", "tbr", "abr", "format_note", "protocol", "dynamic_range", "resolution"};
 
     static boolean isThreads(String url) {
-        try { String h = Uri.parse(url).getHost(); return h != null && h.matches("(?i)(.*\\.)?threads\\.(net|com)"); } catch (Exception e) { return false; }
+        try { String h = Uri.parse(url).getHost(); return h != null && h.matches("(?i)(.*\\.)?(threads\\.(net|com)|snapchat\\.com)"); } catch (Exception e) { return false; }
     }
 
     static JSONObject info(Context c, String url, String proxy) throws Exception {
@@ -163,6 +163,11 @@ final class Extract {
                 if (!urls.isEmpty() && !videos.contains(urls)) videos.add(urls);
             } catch (Exception ignored) {}
         }
+        Matcher cu = Pattern.compile("\"contentUrl\"\\s*:\\s*\"([^\"]+)\"").matcher(text);   // Snapchat
+        while (cu.find()) {
+            String u = cu.group(1).replace("\\u002F", "/").replace("\\/", "/");
+            if (u.startsWith("http")) { List<String> one = new ArrayList<>(); one.add(u); if (!videos.contains(one)) videos.add(one); }
+        }
         if (videos.isEmpty()) {
             Matcher og = Pattern.compile("<meta[^>]+property=\"og:video(?::secure_url)?\"[^>]+content=\"([^\"]+)\"").matcher(text);
             while (og.find()) { List<String> one = new ArrayList<>(); one.add(unescape(og.group(1))); if (!videos.contains(one)) videos.add(one); }
@@ -182,8 +187,8 @@ final class Extract {
     static JSONObject threadsInfo(String url) throws Exception {
         JSONObject meta = new JSONObject();
         List<List<String>> vids = threadsVideos(url, meta);
-        if (vids.isEmpty()) throw new Exception("No video found in this Threads post (it may be private or a photo post).");
-        String title = meta.optString("og:description", meta.optString("og:title", "Threads video")).trim();
+        if (vids.isEmpty()) throw new Exception("No video found in this post (it may be private or a photo post).");
+        String title = meta.optString("og:description", meta.optString("og:title", "Video")).trim();
         if (title.length() > 120) title = title.substring(0, 120);
         JSONArray entries = new JSONArray();
         for (int i = 0; i < vids.size(); i++) {

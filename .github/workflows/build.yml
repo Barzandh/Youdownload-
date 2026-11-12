@@ -19,6 +19,9 @@ jobs:
         run: |
           git config --global user.name "VidVault CI"; git config --global user.email "ci@users.noreply.github.com"
           rm -rf /tmp/site && cp -r web /tmp/site && touch /tmp/site/.nojekyll
+          # a new version id in sw.js is what makes installed apps pick up the update
+          sed -i "s/const VERSION = 'dev'/const VERSION = '${GITHUB_SHA::7}'/" /tmp/site/sw.js
+          grep -q "const VERSION = '${GITHUB_SHA::7}'" /tmp/site/sw.js
           cd /tmp/site && git init -q -b gh-pages && git add -A && git commit -q -m "Web app from ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
 

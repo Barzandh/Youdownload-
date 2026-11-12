@@ -1,5 +1,6 @@
 /* VidVault — joins a video-only and an audio-only fragmented MP4 (how YouTube serves HD) into one playable MP4,
- * entirely in the browser, without re-encoding and without big libraries. */
+ * in the browser, without re-encoding. Works on Blobs that live on disk: only the small index boxes are read
+ * into memory, the media itself is referenced by slices, so long HD videos don't run the phone out of memory. */
 'use strict';
 (function () {
   const r32 = (b, o) => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
@@ -8,14 +9,12 @@
   const w64 = (b, o, v) => { w32(b, o, Math.floor(v / 4294967296)); w32(b, o + 4, v % 4294967296); };
   const type = (b, o) => String.fromCharCode(b[o + 4], b[o + 5], b[o + 6], b[o + 7]);
 
-  // list the boxes between start and end: {type, start, end, body}
   function boxes(b, start, end) {
     const out = [];
     let o = start;
     while (o + 8 <= end) {
       let size = r32(b, o), hdr = 8;
-      if (size === 1) { size = r64(b, o + 8); hdr = 16; }
-      else if (size === 0) size = end - o;
+      if (size === 1) { size = r64(b, o + 8); hdr = 16; } else if (size === 0) size = end - o;
       if (size < hdr || o + size > end) break;
       out.push({ type: type(b, o), start: o, end: o + size, body: o + hdr });
       o += size;
@@ -23,7 +22,7 @@
     return out;
   }
   const child = (b, box, t) => boxes(b, box.body, box.end).find((x) => x.type === t);
-  const path = (b, box, ...ts) => { let x = box; for (const t of ts) { x = x && child(b, x, t); } return x; };
+  const root = (b) => ({ start: 0, end: b.length, body: 8 });
 
   function makeBox(t, parts) {
     const len = 8 + parts.reduce((a, p) => a + p.length, 0);
@@ -35,47 +34,51 @@
     return out;
   }
 
-  function trackInfo(b, moov) {
-    const trak = child(b, moov, 'trak');
-    const tkhd = path(b, trak, 'tkhd');
-    const v = b[tkhd.body];
-    const id = r32(b, tkhd.body + (v === 1 ? 20 : 12));
-    const mdhd = path(b, trak, 'mdia', 'mdhd');
-    const mv = b[mdhd.body];
-    const timescale = r32(b, mdhd.body + (mv === 1 ? 20 : 12));
-    const mvex = child(b, moov, 'mvex');
-    const trex = mvex && boxes(b, mvex.body, mvex.end).find((x) => x.type === 'trex');
-    return { trak, tkhd, id, timescale, trex };
-  }
+  // a source is a Blob (browser) or a Uint8Array (tests)
+  const readAt = (src, s, e) => (src instanceof Uint8Array ? Promise.resolve(src.subarray(s, e))
+    : src.slice(s, e).arrayBuffer().then((b) => new Uint8Array(b)));
+  const sliceOf = (src, s, e) => (src instanceof Uint8Array ? src.subarray(s, e) : src.slice(s, e));
+  const sizeOf = (src) => (src instanceof Uint8Array ? src.length : src.size);
 
-  function parse(b) {
-    const top = boxes(b, 0, b.length);
-    const moov = top.find((x) => x.type === 'moov');
-    if (!moov) throw new Error('not an MP4 file');
-    const info = trackInfo(b, moov);
-    if (!info.trex) throw new Error('not a fragmented MP4');
+  async function parse(src) {
+    const size = sizeOf(src);
+    let o = 0, moov = null, pending = null;
     const frags = [];
-    for (let i = 0; i < top.length; i++) {
-      if (top[i].type !== 'moof') continue;
-      const moof = top[i];
-      let mdat = null;
-      for (let j = i + 1; j < top.length && top[j].type !== 'moof'; j++) if (top[j].type === 'mdat') { mdat = top[j]; break; }
-      if (!mdat) continue;
-      const traf = child(b, moof, 'traf');
-      const tfdt = traf && child(b, traf, 'tfdt');
-      let t = 0;
-      if (tfdt) t = b[tfdt.body] === 1 ? r64(b, tfdt.body + 4) : r32(b, tfdt.body + 4);
-      frags.push({ moof, mdat, time: t / info.timescale });
+    while (o + 8 <= size) {
+      const h = await readAt(src, o, Math.min(size, o + 16));
+      let bs = r32(h, 0), hdr = 8;
+      if (bs === 1) { bs = r64(h, 8); hdr = 16; } else if (bs === 0) bs = size - o;
+      const t = type(h, 0);
+      if (bs < hdr || o + bs > size) break;           // cut off at the end: ignore the incomplete box
+      if (t === 'moov') moov = (await readAt(src, o, o + bs)).slice();
+      else if (t === 'moof') pending = { bytes: (await readAt(src, o, o + bs)).slice(), start: o };
+      else if (t === 'mdat' && pending) { frags.push({ moof: pending.bytes, moofStart: pending.start, mdatStart: o, mdatEnd: o + bs }); pending = null; }
+      o += bs;
     }
-    if (!frags.length) throw new Error('no media fragments');
-    return { b, top, moov, info, frags };
+    if (!moov) throw new Error('not an MP4 file');
+    const mv = root(moov);
+    const trak = child(moov, mv, 'trak');
+    const tkhd = child(moov, trak, 'tkhd');
+    const id = r32(moov, tkhd.body + (moov[tkhd.body] === 1 ? 20 : 12));
+    const mdia = child(moov, trak, 'mdia');
+    const mdhd = child(moov, mdia, 'mdhd');
+    const timescale = r32(moov, mdhd.body + (moov[mdhd.body] === 1 ? 20 : 12)) || 1;
+    const mvex = child(moov, mv, 'mvex');
+    const trex = mvex && child(moov, mvex, 'trex');
+    if (!trex) throw new Error('not a fragmented MP4');
+    if (!frags.length) throw new Error('no media in the file');
+    for (const f of frags) {
+      const traf = child(f.moof, root(f.moof), 'traf');
+      const tfdt = traf && child(f.moof, traf, 'tfdt');
+      const t = tfdt ? (f.moof[tfdt.body] === 1 ? r64(f.moof, tfdt.body + 4) : r32(f.moof, tfdt.body + 4)) : 0;
+      f.time = t / timescale;
+    }
+    return { src, moov, trak, tkhd, id, trex, frags };
   }
 
-  // copy a moof, renumber it and point it at the new track id; returns {bytes, fixBase(newPos)}
-  function rewriteMoof(src, frag, seq, trackId) {
-    const b = src.b.slice(frag.moof.start, frag.moof.end);
-    const root = { start: 0, end: b.length, body: 8 };
-    const mfhd = child(b, root, 'mfhd');
+  function rewriteMoof(f, seq, trackId) {
+    const b = f.moof.slice();
+    const mfhd = child(b, root(b), 'mfhd');
     if (mfhd) w32(b, mfhd.body + 4, seq);
     const fixes = [];
     for (const traf of boxes(b, 8, b.length).filter((x) => x.type === 'traf')) {
@@ -83,34 +86,22 @@
       if (!tfhd) continue;
       if (trackId) w32(b, tfhd.body + 4, trackId);
       const flags = (b[tfhd.body + 1] << 16) | (b[tfhd.body + 2] << 8) | b[tfhd.body + 3];
-      if (flags & 1) { // explicit base-data-offset: must move with the fragment
-        const old = r64(b, tfhd.body + 8);
-        fixes.push({ at: tfhd.body + 8, delta: old - frag.moof.start });
-      }
+      if (flags & 1) fixes.push({ at: tfhd.body + 8, delta: r64(b, tfhd.body + 8) - f.moofStart });  // absolute offsets move with the fragment
     }
-    return { bytes: b, fix(pos) { for (const f of fixes) w64(b, f.at, pos + f.delta); } };
+    return { bytes: b, fix(pos) { for (const x of fixes) w64(b, x.at, pos + x.delta); } };
   }
 
   function buildMoov(V, A, audioId) {
-    const vb = V.b, ab = A.b;
-    // audio trak with the new track id
-    const atrak = ab.slice(A.info.trak.start, A.info.trak.end);
-    const tk = A.info.tkhd.start - A.info.trak.start;
-    const tkv = atrak[tk + 8];
-    w32(atrak, tk + 8 + (tkv === 1 ? 20 : 12), audioId);
-    const atrex = ab.slice(A.info.trex.start, A.info.trex.end);
+    const atrak = A.moov.slice(A.trak.start, A.trak.end);
+    const tk = A.tkhd.start - A.trak.start;
+    w32(atrak, tk + 8 + (atrak[tk + 8] === 1 ? 20 : 12), audioId);
+    const atrex = A.moov.slice(A.trex.start, A.trex.end);
     w32(atrex, 12, audioId);
     const parts = [];
-    for (const c of boxes(vb, V.moov.body, V.moov.end)) {
-      let bytes = vb.slice(c.start, c.end);
-      if (c.type === 'mvhd') {
-        const v = bytes[8];
-        w32(bytes, 8 + (v === 1 ? 108 : 96), audioId + 1);   // next_track_ID
-      }
-      if (c.type === 'mvex') {
-        const kids = boxes(vb, c.body, c.end).map((k) => vb.slice(k.start, k.end));
-        bytes = makeBox('mvex', kids.concat([atrex]));
-      }
+    for (const c of boxes(V.moov, 8, V.moov.length)) {
+      let bytes = V.moov.slice(c.start, c.end);
+      if (c.type === 'mvhd') w32(bytes, 8 + (bytes[8] === 1 ? 108 : 96), audioId + 1);   // next_track_ID
+      if (c.type === 'mvex') bytes = makeBox('mvex', boxes(V.moov, c.body, c.end).map((k) => V.moov.slice(k.start, k.end)).concat([atrex]));
       parts.push(bytes);
       if (c.type === 'trak') parts.push(atrak);
     }
@@ -126,26 +117,26 @@
     return makeBox('ftyp', [body]);
   }
 
-  /** video, audio: Uint8Array of fragmented MP4 files. Returns an array of Uint8Array parts for a Blob. */
-  function joinFMP4(video, audio) {
-    const V = parse(video), A = parse(audio);
-    const audioId = V.info.id === 1 ? 2 : V.info.id + 1;
+  /** video, audio: Blob or Uint8Array. Resolves to an array of parts (Uint8Array / Blob slices) for new Blob(parts). */
+  async function join(video, audio) {
+    const V = await parse(video), A = await parse(audio);
+    const audioId = V.id === 1 ? 2 : V.id + 1;
     const moov = buildMoov(V, A, audioId);
-    const all = V.frags.map((f) => ({ src: V, f, id: 0 })).concat(A.frags.map((f) => ({ src: A, f, id: audioId })));
+    const all = V.frags.map((f) => ({ S: V, f, id: 0 })).concat(A.frags.map((f) => ({ S: A, f, id: audioId })));
     all.sort((x, y) => x.f.time - y.f.time || (x.id - y.id));
     const head = ftyp();
     const parts = [head, moov];
     let pos = head.length + moov.length;
     all.forEach((x, i) => {
-      const m = rewriteMoof(x.src, x.f, i + 1, x.id);
+      const m = rewriteMoof(x.f, i + 1, x.id);
       m.fix(pos);
-      parts.push(m.bytes, x.src.b.subarray(x.f.mdat.start, x.f.mdat.end));
-      pos += m.bytes.length + (x.f.mdat.end - x.f.mdat.start);
+      parts.push(m.bytes, sliceOf(x.S.src, x.f.mdatStart, x.f.mdatEnd));
+      pos += m.bytes.length + (x.f.mdatEnd - x.f.mdatStart);
     });
     return parts;
   }
 
-  const api = { joinFMP4, _parse: parse };
+  const api = { join, parse };
   if (typeof window !== 'undefined') window.VVMux = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();
