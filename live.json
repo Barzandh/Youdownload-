@@ -1,0 +1,101 @@
+{
+ "updated": "2026-11-14T06:19:35Z",
+ "cobalt": {
+  "twitter": [
+   "https://cobaltapi.cjs.nz/",
+   "https://rue-cobalt.xenon.zone/"
+  ],
+  "facebook": [
+   "https://cobaltapi.cjs.nz/"
+  ],
+  "tiktok": [
+   "https://rue-cobalt.xenon.zone/"
+  ],
+  "youtube": [
+   "https://rue-cobalt.xenon.zone/"
+  ]
+ },
+ "invidious": [
+  "https://yt.chocolatemoo53.com"
+ ],
+ "report": {
+  "https://cobaltapi.cjs.nz/ twitter": "ok",
+  "https://cobaltapi.cjs.nz/ facebook": "ok",
+  "https://cobaltapi.cjs.nz/ tiktok": "error.api.fetch.fail",
+  "https://cobaltapi.cjs.nz/ instagram": "error.api.fetch.empty",
+  "https://cobaltapi.cjs.nz/ youtube": "error.api.youtube.login",
+  "https://cobaltapi.cjs.nz/ snapchat": "error.api.fetch.fail",
+  "https://cobaltapi.cjs.nz/ threads": "error.api.link.invalid",
+  "https://api.cobalt.liubquanti.click/": "no CORS (204)",
+  "https://rue-cobalt.xenon.zone/ twitter": "ok",
+  "https://rue-cobalt.xenon.zone/ facebook": "error.api.fetch.empty",
+  "https://rue-cobalt.xenon.zone/ tiktok": "ok",
+  "https://rue-cobalt.xenon.zone/ instagram": "error.api.fetch.empty",
+  "https://rue-cobalt.xenon.zone/ youtube": "ok",
+  "https://rue-cobalt.xenon.zone/ snapchat": "error.api.fetch.fail",
+  "https://rue-cobalt.xenon.zone/ threads": "error.api.link.invalid",
+  "https://cobalt-api.meowing.de/ twitter": "error.api.auth.jwt.missing",
+  "https://cobalt-api.meowing.de/ facebook": "error.api.auth.jwt.missing",
+  "https://cobalt-api.meowing.de/ tiktok": "error.api.auth.jwt.missing",
+  "https://cobalt-api.meowing.de/ instagram": "error.api.auth.jwt.missing",
+  "https://cobalt-api.meowing.de/ youtube": "error.api.auth.jwt.missing",
+  "https://cobalt-api.meowing.de/ snapchat": "error.api.auth.jwt.missing",
+  "https://cobalt-api.meowing.de/ threads": "error.api.auth.jwt.missing",
+  "https://capi.3kh0.net/ twitter": "error.api.auth.jwt.missing",
+  "https://capi.3kh0.net/ facebook": "error.api.auth.jwt.missing",
+  "https://capi.3kh0.net/ tiktok": "error.api.auth.jwt.missing",
+  "https://capi.3kh0.net/ instagram": "error.api.auth.jwt.missing",
+  "https://capi.3kh0.net/ youtube": "error.api.auth.jwt.missing",
+  "https://capi.3kh0.net/ snapchat": "error.api.auth.jwt.missing",
+  "https://capi.3kh0.net/ threads": "error.api.auth.jwt.missing",
+  "https://cobalt-backend.canine.tools/ twitter": "error.api.auth.jwt.missing",
+  "https://cobalt-backend.canine.tools/ facebook": "error.api.auth.jwt.missing",
+  "https://cobalt-backend.canine.tools/ tiktok": "error.api.auth.jwt.missing",
+  "https://cobalt-backend.canine.tools/ instagram": "error.api.auth.jwt.missing",
+  "https://cobalt-backend.canine.tools/ youtube": "error.api.auth.jwt.missing",
+  "https://cobalt-backend.canine.tools/ snapchat": "error.api.auth.jwt.missing",
+  "https://cobalt-backend.canine.tools/ threads": "error.api.auth.jwt.missing",
+  "https://yt.chocolatemoo53.com": "ok",
+  "https://invi.susurrando.com": "meta 500 acao=*",
+  "https://inv.nadeko.net": "meta 403 acao=None",
+  "https://yewtu.be": "meta 403 acao=None",
+  "https://invidious.nerdvpn.de": "meta 403 acao=None",
+  "https://iv.ggtyler.dev": "meta 0 acao=None",
+  "https://invidious.privacyredirect.com": "meta 0 acao=None",
+  "https://invidious.tiekoetter.com": "meta 403 acao=None",
+  "https://inv-ygg.nadeko.net": "meta 0 acao=None",
+  "https://inv.nadeko.ygg": "meta 0 acao=None",
+  "snapchat sample": [
+   "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYZGFmemJwbHFoAaA3GyUTAaA3Gx6gAAAAAQ",
+   "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYZGFmemJwbHFoAaA3GyUTAaA3Gx6gAAAAAQ"
+  ],
+  "direct snapchat": "200, 325158 bytes, media=['https://cf-st.sc-cdn.net/d/cz4xmsPyrini9UmKiC4cQ.27.IRZXSOY?mo=Gl0aCTIBBEgCUC5gAVCiAVoQU3BvdGxpZ2h0U2hhcmluZ6IBNggbEiUKIwiUnA8gATCcBDjAB0ABSg4KCSURExETDxMREhD0A1CaMGgCIgsSACoHSVJaWFNPWZADmjA%3D&uc=46']",
+  "direct threads": "200, 602051 bytes, media=[]",
+  "direct instagram": "200, 182740 bytes, media=[]",
+  "relay allorigins snapchat": "522 acao=None 16 bytes media=0",
+  "relay codetabs snapchat": "522 acao=None 16 bytes media=0",
+  "relay corsproxy snapchat": "401 acao=* 81 bytes media=0",
+  "relay corslol snapchat": "429 acao=None 20 bytes media=0",
+  "relay thingproxy snapchat": "0 acao=None 52 bytes media=0",
+  "relay cors-eu snapchat": "429 acao=None 53087 bytes media=0",
+  "relay whateverorigin snapchat": "500 acao=None 35 bytes media=0",
+  "relay everyorigin snapchat": "429 acao=None 24733 bytes media=0",
+  "relay allorigins threads": "502 acao=None 16 bytes media=0",
+  "relay codetabs threads": "522 acao=None 16 bytes media=0",
+  "relay corsproxy threads": "401 acao=* 81 bytes media=0",
+  "relay corslol threads": "429 acao=None 20 bytes media=0",
+  "relay thingproxy threads": "0 acao=None 52 bytes media=0",
+  "relay cors-eu threads": "429 acao=None 53087 bytes media=0",
+  "relay whateverorigin threads": "500 acao=None 35 bytes media=0",
+  "relay everyorigin threads": "403 acao=None 24729 bytes media=0",
+  "relay allorigins instagram": "500 acao=None 177 bytes media=0",
+  "relay codetabs instagram": "0 acao=None 28 bytes media=0",
+  "relay corsproxy instagram": "401 acao=* 81 bytes media=0",
+  "relay corslol instagram": "200 acao=* 534052 bytes media=0",
+  "relay thingproxy instagram": "0 acao=None 52 bytes media=0",
+  "relay cors-eu instagram": "429 acao=None 53087 bytes media=0",
+  "relay whateverorigin instagram": "500 acao=None 22 bytes media=0",
+  "relay everyorigin instagram": "429 acao=None 24729 bytes media=0"
+ },
+ "relays": {}
+}
